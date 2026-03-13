@@ -248,11 +248,11 @@
 > > >
 > > > - `/apps/web` must never import from `/apps/api` directly. All data via HTTP/API.
 > > > - - `/packages/agents` must never import from `/packages/channels`. They're parallel, both used by `/apps/api`.
-> > >   - - `/packages/llm` must never contain business logic. Gateway only.
-> > >     - - `/packages/ui` must never make API calls or import from `/apps/*`.
-> > >       - - Any code that needs `tenantId` must receive it as a parameter. Never derive it from global state.
+> > > - - `/packages/llm` must never contain business logic. Gateway only.
+> > > - - `/packages/ui` must never make API calls or import from `/apps/*`.
+> > > - - Any code that needs `tenantId` must receive it as a parameter. Never derive it from global state.
 > > >        
-> > >         - ---
+> > > - ---
 > > >
 > > > *Last updated: 13/03/2026 — v0.1 initial*
 > > > *Next: See `docs/CONTRIBUTING.md` for coding rules, and `docs/sprints/SPRINT_0.md` for the first build spec.*
