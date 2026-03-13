@@ -1,4 +1,4 @@
-# Contributing to Panda
+# Contributing to Wren
 
 > These rules apply to **every contributor** — human developers, Claude Code, and all AI coding agents.
 > > Read the [ADR](./ADR.md) and [MODULE_MAP](./MODULE_MAP.md) before writing a single line of code.
@@ -33,7 +33,7 @@
 > >
 > > ```typescript
 > > // ✅ CORRECT
-> > import { llm } from '@panda/llm'
+import { llm } from '@wren/llm'
 > > const response = await llm.chat({ model: MODELS.STANDARD, messages, tenantId })
 > >
 > > // ❌ REJECTED
@@ -147,7 +147,7 @@
 > > - **Formatter:** Prettier (config in `/packages/config/prettier.config.js`)
 > > - - **Linter:** ESLint with TypeScript rules (config in `/packages/config/eslint.config.js`)
 > >   - - **Naming:** `camelCase` for variables/functions, `PascalCase` for types/classes, `UPPER_SNAKE` for constants
-> >     - - **Imports:** Absolute imports using workspace package names (`@panda/db`, `@panda/types`, etc.)
+> >     - - **Imports:** Absolute imports using workspace package names (`@wren/db`, `@wren/types`, etc.)
 > >       - - **Error handling:** Use typed error classes, not string throws. Never swallow errors silently.
 > >         - - **Comments:** Explain *why*, not *what*. The code shows what. Comments explain intent and non-obvious decisions.
 > >          
