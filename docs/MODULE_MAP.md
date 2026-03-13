@@ -1,5 +1,5 @@
 # Module Map
-### Project: Panda — Global SMB AI Platform
+### Project: Wren — Global SMB AI Platform
 *Version 0.1 — 13/03/2026*
 
 > **This document is the constitution of the codebase.**
@@ -12,7 +12,7 @@
 > > >
 > > > ```
 > > > ┌─────────────────────────────────────────────────────────────────────────────┐
-> > > │                              PANDA PLATFORM                                  │
+> > > │                              WREN PLATFORM                                  │
 > > > │                                                                              │
 > > > │  ┌──────────────────────────────────────────────────────────────────────┐   │
 > > > │  │                         PRESENTATION LAYER                           │   │
