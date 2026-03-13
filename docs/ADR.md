@@ -11,18 +11,18 @@
 **Structure:**
 ```
 /apps
-  /web      → Next.js 15 frontend (dashboard + admin)
-    /api      → Fastify backend (core business logic)
-      /worker   → BullMQ background job processor
-        /n8n      → n8n instance (Docker, managed separately)
-        /packages
-          /db       → Prisma schema + migrations + seed
-            /ui       → Shared component library (shadcn/ui)
-              /types    → Shared TypeScript types
-                /config   → Shared ESLint, TypeScript, Tailwind configs
-                  /agents   → Agent runtime library
-                    /channels → Channel adapter library
-                      /llm      → LiteLLM wrapper + model registry
+/web      → Next.js 15 frontend (dashboard + admin)
+/api      → Fastify backend (core business logic)
+/worker   → BullMQ background job processor
+/n8n      → n8n instance (Docker, managed separately)
+/packages
+/db       → Prisma schema + migrations + seed
+/ui       → Shared component library (shadcn/ui)
+/types    → Shared TypeScript types
+/config   → Shared ESLint, TypeScript, Tailwind configs
+/agents   → Agent runtime library
+/channels → Channel adapter library
+/llm      → LiteLLM wrapper + model registry
                       ```
 
                       **Why:** One `git clone`, one `pnpm install`, one `docker-compose up`. Type changes propagate immediately. Claude Code can navigate the full codebase in one context window. Avoids premature microservice overhead.
@@ -91,11 +91,11 @@
                       ```typescript
                       export const MODELS = {
                         FAST: 'gpt-4o-mini',
-                          STANDARD: 'gpt-4o',
-                            REASONING: 'claude-sonnet-4',
-                              EMBEDDINGS: 'text-embedding-3-small',
-                                LOCAL_FAST: 'ollama/llama3.2',
-                                } as const
+                        STANDARD: 'gpt-4o',
+                        REASONING: 'claude-sonnet-4',
+                        EMBEDDINGS: 'text-embedding-3-small',
+                        LOCAL_FAST: 'ollama/llama3.2',
+                        } as const
                                 ```
 
                                 Tenants can override model selection. Enterprise tenants can point to their own Ollama instance.
@@ -157,12 +157,12 @@
                                 ```typescript
                                 interface ChannelAdapter {
                                   id: string
-                                    name: string
-                                      onMessage(handler: MessageHandler): void
-                                        sendMessage(recipient: ChannelRecipient, message: OutboundMessage): Promise<void>
-                                          sendTyping?(recipient: ChannelRecipient): Promise<void>
-                                            ping(): Promise<boolean>
-                                            }
+                                  name: string
+                                  onMessage(handler: MessageHandler): void
+                                  sendMessage(recipient: ChannelRecipient, message: OutboundMessage): Promise<void>
+                                  sendTyping?(recipient: ChannelRecipient): Promise<void>
+                                  ping(): Promise<boolean>
+                                  }
                                             ```
 
                                             **Build priority:**
@@ -252,15 +252,15 @@
 
                                             ```typescript
                                             interface WhiteLabelConfig {
-                                              brandName: string
-                                                logoUrl: string
-                                                  primaryColor: string
-                                                    customDomain?: string
-                                                      emailFromName?: string
-                                                        emailFromAddress?: string
-                                                          hideParentBrand: boolean
-                                                            customCss?: string
-                                                            }
+                                            brandName: string
+                                            logoUrl: string
+                                            primaryColor: string
+                                            customDomain?: string
+                                            emailFromName?: string
+                                            emailFromAddress?: string
+                                            hideParentBrand: boolean
+                                            customCss?: string
+                                            }
                                                             ```
 
                                                             **Custom domain routing:** Middleware reads hostname → resolves tenant → renders with their branding.
@@ -275,14 +275,14 @@
 
                                                             ```typescript
                                                             interface Prompt {
-                                                              title: string
-                                                                department: string
-                                                                  category: string
-                                                                    formSchema: JSONSchema7   // drives the adaptive form UI
-                                                                      promptTemplate: string    // Handlebars template, vars from form
-                                                                        difficulty: 'beginner' | 'intermediate' | 'advanced'
-                                                                          estimatedMinutesSaved: number
-                                                                          }
+                                                            title: string
+                                                            department: string
+                                                            category: string
+                                                            formSchema: JSONSchema7   // drives the adaptive form UI
+                                                            promptTemplate: string    // Handlebars template, vars from form
+                                                            difficulty: 'beginner' | 'intermediate' | 'advanced'
+                                                            estimatedMinutesSaved: number
+                                                            }
                                                                           ```
 
                                                                           The form renderer reads `formSchema` and generates the UI dynamically. On submit, Handlebars merges form data into `promptTemplate` to produce the final prompt sent to the agent.
