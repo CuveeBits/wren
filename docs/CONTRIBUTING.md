@@ -107,14 +107,14 @@ import { llm } from '@wren/llm'
 > > Every new package or significant module must include a `README.md` that explains:
 > > - What this module owns
 > > - - What it explicitly does NOT do
-> >   - - Its public interface (key exports)
-> >     - - Any non-obvious decisions made
+> > - - Its public interface (key exports)
+> > - - Any non-obvious decisions made
 > >      
-> >       - ### Rule 9: Feature flags for everything in progress
+> >   - ### Rule 9: Feature flags for everything in progress
 > >      
-> >       - Unfinished features ship behind a feature flag, never as dead code or commented-out code.
+> >   - Unfinished features ship behind a feature flag, never as dead code or commented-out code.
 > >      
-> >       - ```typescript
+> >   - ```typescript
 > > // ✅ CORRECT
 > > if (await isFeatureEnabled('whatsapp-adapter', tenantId)) {
 > >   // WhatsApp-specific code
@@ -146,12 +146,12 @@ import { llm } from '@wren/llm'
 > >
 > > - **Formatter:** Prettier (config in `/packages/config/prettier.config.js`)
 > > - - **Linter:** ESLint with TypeScript rules (config in `/packages/config/eslint.config.js`)
-> >   - - **Naming:** `camelCase` for variables/functions, `PascalCase` for types/classes, `UPPER_SNAKE` for constants
-> >     - - **Imports:** Absolute imports using workspace package names (`@wren/db`, `@wren/types`, etc.)
-> >       - - **Error handling:** Use typed error classes, not string throws. Never swallow errors silently.
-> >         - - **Comments:** Explain *why*, not *what*. The code shows what. Comments explain intent and non-obvious decisions.
-> >          
-> >           - ---
+> > - - **Naming:** `camelCase` for variables/functions, `PascalCase` for types/classes, `UPPER_SNAKE` for constants
+> > - - **Imports:** Absolute imports using workspace package names (`@wren/db`, `@wren/types`, etc.)
+> > - - **Error handling:** Use typed error classes, not string throws. Never swallow errors silently.
+> > - - **Comments:** Explain *why*, not *what*. The code shows what. Comments explain intent and non-obvious decisions.
+> >         
+> > - ---
 > >
 > > ## Commit Convention
 > >
@@ -172,25 +172,25 @@ import { llm } from '@wren/llm'
 > >
 > > 1. **Spec first:** Every sprint starts with a spec in `docs/sprints/SPRINT_N.md`
 > > 2. 2. **Read the ADR and Module Map** before starting any implementation
-> >    3. 3. **Branch:** `sprint/N-short-description` (e.g., `sprint/0-repo-scaffold`)
-> >       4. 4. **Build:** Implement against the spec. One commit per logical unit.
-> >          5. 5. **Review:** All code reviewed against the 10 rules above before merge
-> >             6. 6. **Document:** Update relevant docs if architectural decisions change
-> >                7. 7. **Merge to main:** Clean, passing tests, no rule violations
+> > 3. 3. **Branch:** `sprint/N-short-description` (e.g., `sprint/0-repo-scaffold`)
+> > 4. 4. **Build:** Implement against the spec. One commit per logical unit.
+> > 5. 5. **Review:** All code reviewed against the 10 rules above before merge
+> > 6. 6. **Document:** Update relevant docs if architectural decisions change
+> > 7. 7. **Merge to main:** Clean, passing tests, no rule violations
 > >                  
-> >                   8. ---
+> > 8. ---
+> >                 
+> > 9. ## For AI Coding Agents (Claude Code, local models via Ollama, etc.)
 > >                  
-> >                   9. ## For AI Coding Agents (Claude Code, local models via Ollama, etc.)
-> >                  
-> >                   10. When you receive a task:
+> > 10. When you receive a task:
 > >
 > > 1. **Read first:** Load `docs/ADR.md` and `docs/MODULE_MAP.md` into context
 > > 2. 2. **Identify the module:** Confirm where your code belongs in the module map
-> >    3. 3. **Check the rules:** Before submitting, verify all 10 rules are satisfied
-> >       4. 4. **Scope strictly:** Only build what the sprint spec asks for. No scope creep.
-> >          5. 5. **When uncertain:** Add a `// TODO(review): [your question]` comment rather than guessing
-> >             6. 6. **Test your work:** Include tests for the logic you build. No untested code ships.
+> > 3. 3. **Check the rules:** Before submitting, verify all 10 rules are satisfied
+> > 4. 4. **Scope strictly:** Only build what the sprint spec asks for. No scope creep.
+> > 5. 5. **When uncertain:** Add a `// TODO(review): [your question]` comment rather than guessing
+> > 6. 6. **Test your work:** Include tests for the logic you build. No untested code ships.
 > >               
-> >                7. ---
+> > 7. ---
 > >               
 > >                8. *Last updated: 13/03/2026 — v0.1 initial*
