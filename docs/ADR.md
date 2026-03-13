@@ -1,5 +1,5 @@
 # Architecture Decision Record (ADR)
-### Project: Panda — Global SMB AI Platform
+### Project: Wren — Global SMB AI Platform
 *Version 0.1 — 13/03/2026*
 
 ---
