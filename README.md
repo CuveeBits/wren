@@ -12,12 +12,12 @@
 >
 > - **Prompt Library** — 200+ business templates with adaptive form UIs (no prompt engineering required)
 > - - **Knowledge Bases** — Upload company documents, create a RAG-powered knowledge base per department
->   - - **AI Agents** — Configurable agents per department, connected to your KBs and tools
->     - - **Workflow Automation** — Visual drag-and-drop builder powered by n8n (400+ integrations)
->       - - **Multi-channel Chat** — Teams, Slack, WhatsApp, Telegram, Email, WebChat
->         - - **White-label** — Full rebrand for reseller/SI channel partners
+> - - **AI Agents** — Configurable agents per department, connected to your KBs and tools
+> - - **Workflow Automation** — Visual drag-and-drop builder powered by n8n (400+ integrations)
+> - - **Multi-channel Chat** — Teams, Slack, WhatsApp, Telegram, Email, WebChat
+> - - **White-label** — Full rebrand for reseller/SI channel partners
 >          
->           - ---
+> - ---
 >
 > ## Quick Start (Development)
 >
@@ -44,12 +44,12 @@
 >
 > - Web dashboard: http://localhost:3000
 > - - API: http://localhost:3001
->   - - n8n: http://localhost:5678
->     - - LiteLLM: http://localhost:4000
->       - - Mailhog: http://localhost:8025
->         - - MinIO: http://localhost:9001
+> - - n8n: http://localhost:5678
+> - - LiteLLM: http://localhost:4000
+> - - Mailhog: http://localhost:8025
+> - - MinIO: http://localhost:9001
 >          
->           - ---
+> - ---
 >
 > ## Documentation
 >
@@ -118,6 +118,6 @@
 > - **`usewren.ai`** — product, platform, where customers go
 > - - **`wrenhq.com`** — company, corporate entity, investors and partners
 >  
->   - ---
+> - ---
 >
 > *Built by CuveeBits s.r.o. — architecture by Claude (Anthropic)*
