@@ -1,4 +1,4 @@
-# 🐼 Panda
+# 🐦 Wren
 
 > **Global SMB AI Platform** — prompt library, knowledge bases, AI agents, workflow automation, and multi-channel chat. Built for businesses worldwide.
 >
@@ -6,9 +6,9 @@
 >
 > ---
 >
-> ## What is Panda?
+> ## What is Wren?
 >
-> Panda is a full-spectrum AI platform for small and medium businesses globally. It combines:
+> Wren is a full-spectrum AI platform for small and medium businesses globally. It combines:
 >
 > - **Prompt Library** — 200+ business templates with adaptive form UIs (no prompt engineering required)
 > - - **Knowledge Bases** — Upload company documents, create a RAG-powered knowledge base per department
@@ -23,8 +23,8 @@
 >
 > ```bash
 > # 1. Clone and install
-> git clone https://github.com/CuveeBits/panda.git
-> cd panda
+> git clone https://github.com/CuveeBits/wren.git
+> cd wren
 > pnpm install
 >
 > # 2. Copy env vars
@@ -58,6 +58,7 @@
 > | [docs/ADR.md](./docs/ADR.md) | Architecture Decision Records — all major technical decisions and why |
 > | [docs/MODULE_MAP.md](./docs/MODULE_MAP.md) | System module map, boundaries, data flows |
 > | [docs/CONTRIBUTING.md](./docs/CONTRIBUTING.md) | Coding rules — read before writing any code |
+> | [docs/NAMING.md](./docs/NAMING.md) | Why Wren — the name, the story, the domains |
 > | [docs/sprints/SPRINT_0.md](./docs/sprints/SPRINT_0.md) | Sprint 0: Repo scaffold + infrastructure |
 >
 > ---
@@ -81,7 +82,7 @@
 > ## Monorepo Structure
 >
 > ```
-> panda/
+> wren/
 > ├── apps/
 > │   ├── web/      → Next.js dashboard
 > │   ├── api/      → Fastify API server
@@ -111,5 +112,12 @@
 > | Sprint 6 | Slack + WhatsApp adapters + white-label config | 🔲 Not started |
 >
 > ---
+>
+> ## Domains
+>
+> - **`usewren.ai`** — product, platform, where customers go
+> - - **`wrenhq.com`** — company, corporate entity, investors and partners
+>  
+>   - ---
 >
 > *Built by CuveeBits s.r.o. — architecture by Claude (Anthropic)*
