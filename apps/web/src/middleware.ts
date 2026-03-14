@@ -1,18 +1,12 @@
 /**
  * Next.js middleware — Clerk auth enforcement.
  *
- * Protects all (dashboard) routes. Redirects unauthenticated users to /login.
- * Public routes: /, /login, /register, and static assets.
+ * Runs clerkMiddleware() on all requests so auth() works in server components.
+ * Route-level protection is handled in each layout (see dashboard layout).
  */
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
+import { clerkMiddleware } from '@clerk/nextjs/server'
 
-const isProtectedRoute = createRouteMatcher(['/dashboard(.*)'])
-
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect()
-  }
-})
+export default clerkMiddleware()
 
 export const config = {
   matcher: [

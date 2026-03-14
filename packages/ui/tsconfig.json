@@ -2,6 +2,7 @@
   "extends": "@wren/config/tsconfig",
   "compilerOptions": {
     "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "outDir": "./dist",
     "rootDir": "./src"
   },

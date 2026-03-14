@@ -13,10 +13,7 @@ export default async function HomePage() {
     redirect('/login')
   }
 
-  if (orgSlug) {
-    redirect(`/dashboard/${orgSlug}`)
-  }
-
-  // User is authenticated but has no org — they need to create/join one
-  redirect('/login')
+  // Use org slug if available, otherwise fall back to 'demo' tenant
+  // Note: (dashboard) is a Next.js route group — URLs are /[tenantSlug], NOT /dashboard/[tenantSlug]
+  redirect(`/${orgSlug ?? 'demo'}`)
 }
