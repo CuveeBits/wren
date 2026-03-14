@@ -291,4 +291,136 @@
 
                                                                           ---
 
-                                                                          *Last updated: 13/03/2026 — v0.1 initial*
+                                                                          ---
+
+## ADR-017: Tenant-Configurable Model Selection
+
+**Decision:** Model selection is a first-class tenant configuration. Each tenant can choose from three model source types depending on their subscription tier. All routing flows through LiteLLM — no exceptions (see ADR-005).
+
+---
+
+### Model Source Types
+
+| Source | Description | Who pays inference | Tier |
+|--------|-------------|-------------------|------|
+| **Wren-hosted** | CuveeBits runs inference (cloud APIs under our keys, or Ollama on our iron). Tenant picks from a curated list — no config required. | CuveeBits (included in subscription) | Starter + |
+| **BYOK** (Bring Your Own Key) | Tenant provides their own API key (OpenAI, Anthropic, Gemini, Mistral, etc.). Encrypted at rest, never logged. Usage goes against their quota. | Tenant | Growth + |
+| **BYOE** (Bring Your Own Endpoint) | Tenant provides a URL to their own Ollama instance, vLLM, or any OpenAI-compatible endpoint. Optional bearer token. Air-gap friendly. | Tenant (self-hosted) | Enterprise |
+
+---
+
+### Data Model
+
+New tables in `/packages/db/prisma/schema.prisma`:
+
+```prisma
+// Catalogue of models available on the platform
+model ModelDefinition {
+  id           String   @id @default(cuid())
+  slug         String   @unique          // e.g. "wren-fast", "openai/gpt-4o", "ollama/qwen2.5:7b"
+  displayName  String                    // e.g. "Wren Fast (powered by Qwen 2.5)"
+  provider     String                    // "wren-hosted" | "openai" | "anthropic" | "ollama" | "custom"
+  sourceType   ModelSourceType           // WREN_HOSTED | BYOK | BYOE
+  contextWindow Int?
+  capabilities String[]                  // ["chat", "embeddings", "vision"]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  tenantModels TenantModel[]
+}
+
+enum ModelSourceType {
+  WREN_HOSTED
+  BYOK
+  BYOE
+}
+
+// Per-tenant model configuration
+model TenantModel {
+  id             String          @id @default(cuid())
+  tenantId       String
+  modelId        String
+  isEnabled      Boolean         @default(true)
+  isDefault      Boolean         @default(false)   // default model for this tenant
+  apiKeyEncrypted String?        // AES-256-GCM, null for WREN_HOSTED
+  endpointUrl    String?         // BYOE only
+  displayNameOverride String?    // tenant can rename "GPT-4o" to "Company Assistant"
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  tenant         Tenant          @relation(fields: [tenantId], references: [id])
+  model          ModelDefinition @relation(fields: [modelId], references: [id])
+
+  @@unique([tenantId, modelId])
+  @@index([tenantId])
+}
+```
+
+---
+
+### LiteLLM Routing
+
+LiteLLM is configured dynamically per-request using **virtual keys** and **per-request model routing**:
+
+- **Wren-hosted:** Routes to a pre-configured LiteLLM model alias (`wren-fast`, `wren-standard`, etc.). CuveeBits manages the underlying keys in LiteLLM config.
+- **BYOK:** API key is decrypted at request time and passed as `api_key` in the LiteLLM call. The tenant's key, the tenant's bill.
+- **BYOE:** `api_base` is set to the tenant's endpoint URL. Compatible with any OpenAI-spec server (Ollama, vLLM, LM Studio, etc.).
+
+All routing happens in `/packages/llm`. The API layer never touches a raw API key — it calls `llm.complete({ tenantId, modelSlug, messages })` and the package handles resolution.
+
+---
+
+### Encryption
+
+Tenant API keys are encrypted before storage:
+- Algorithm: AES-256-GCM
+- Key derivation: per-tenant key derived from a master secret + tenant ID (HKDF)
+- Keys are decrypted in memory at request time only — never logged, never returned via API
+- Stored in `TenantModel.apiKeyEncrypted`
+
+---
+
+### Subscription Tier Access
+
+| Tier | Wren-hosted | BYOK | BYOE | Max models |
+|------|------------|------|------|------------|
+| Starter | ✅ (curated 2-3) | ❌ | ❌ | 3 |
+| Growth | ✅ | ✅ | ❌ | 10 |
+| Enterprise | ✅ | ✅ | ✅ | Unlimited |
+
+Tier enforcement is in the API plugin layer, not in the LLM package.
+
+---
+
+### Admin UI (Tenant Settings → Models)
+
+Located at `/[tenantSlug]/settings/models`:
+
+- **Wren-hosted tab:** Toggle on/off available platform models. Mark one as default.
+- **Cloud Keys tab (Growth+):** Add/remove API keys per provider. Key value masked after entry. Connection test button.
+- **Private Endpoints tab (Enterprise):** Add Ollama/vLLM URLs. Name them. Test connectivity. Enable/disable per model slug.
+
+---
+
+### Prompt Execution Model Selection
+
+When a tenant executes a prompt:
+1. Prompt definition may specify a preferred `modelHint` (e.g. `"reasoning"` or `"fast"`)
+2. The API resolves `modelHint` → `TenantModel` for that tenant
+3. If no match or disabled, falls back to tenant's default model
+4. If no default, falls back to platform default (`wren-fast`)
+
+This lets templates be portable across tenants regardless of their model choices.
+
+---
+
+### Why This Matters for SMB
+
+- **Cost control:** SMBs can start on Wren-hosted (flat fee, predictable) and graduate to BYOK as usage scales
+- **Data sovereignty:** German/EU enterprise accounts can run BYOE against an on-prem Ollama — no data leaves their network
+- **Competitive moat:** Lock-in is avoided deliberately. If a tenant loves their local Mistral model, Wren works with it. Trust wins over lock-in.
+- **Future: model marketplace:** As open-source models mature, Wren-hosted tiers can be repriced or expanded without changing the tenant-facing API
+
+---
+
+*Last updated: 14/03/2026 — v0.2 — added ADR-017*
