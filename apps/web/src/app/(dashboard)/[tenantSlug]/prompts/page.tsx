@@ -77,7 +77,7 @@ export default function PromptsPage() {
 
   // Fetch departments on mount
   React.useEffect(() => {
-    fetch(`${API_BASE}/api/v1/prompts/meta/depts`, { credentials: 'include' })
+    fetch(`${API_BASE}/api/v1/prompts/meta/depts`, { credentials: 'omit' })
       .then((r) => r.json())
       .then((j: { data: string[] }) => setDepartments(j.data))
       .catch(console.error)
@@ -101,7 +101,7 @@ export default function PromptsPage() {
 
     try {
       const res = await fetch(`${API_BASE}/api/v1/prompts?${qs}`, {
-        credentials: 'include',
+        credentials: 'omit',
       })
       const json = (await res.json()) as {
         data: PromptSummary[]
