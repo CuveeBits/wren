@@ -1,0 +1,22 @@
+{
+  "name": "@wren/agents",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@wren/llm": "workspace:*",
+    "@wren/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@wren/config": "workspace:*",
+    "typescript": "^5.4.0"
+  }
+}

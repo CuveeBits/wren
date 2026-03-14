@@ -1,0 +1,104 @@
+version: '3.9'
+
+# Wren development stack
+# Usage: docker-compose up -d
+# See: docs/ADR.md ADR-013 for architecture decisions
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: wren
+      POSTGRES_USER: wren
+      POSTGRES_PASSWORD: wren_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wren"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      # Auth
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: admin
+      N8N_BASIC_AUTH_PASSWORD: admin_dev
+      # Webhook URL must match how n8n is accessed externally
+      WEBHOOK_URL: http://localhost:5678
+      # Sprint 0: use SQLite for n8n's own DB (avoids needing a separate PG database)
+      # Production: switch to DB_TYPE=postgresdb with dedicated credentials
+      DB_TYPE: sqlite
+      N8N_USER_FOLDER: /home/node/.n8n
+    ports:
+      - "5678:5678"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: unless-stopped
+
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./litellm.config.yaml:/app/config.yaml
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
+    environment:
+      LITELLM_MASTER_KEY: ${LITELLM_API_KEY:-sk-dev-master-key}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
+
+  mailhog:
+    # Local email testing — dev only (ADR-013)
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    restart: unless-stopped
+
+  minio:
+    # Local S3-compatible storage — replaces Cloudflare R2 in dev (ADR-011)
+    image: minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:-minio_dev}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:-minio_dev_secret}
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+  n8n_data:
+  minio_data:

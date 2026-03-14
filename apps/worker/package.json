@@ -1,0 +1,24 @@
+{
+  "name": "@wren/worker",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@wren/db": "workspace:*",
+    "@wren/types": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.3.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@wren/config": "workspace:*",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0"
+  }
+}

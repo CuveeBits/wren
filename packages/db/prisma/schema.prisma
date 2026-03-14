@@ -1,0 +1,293 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector", schema: "public")]
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum Plan {
+  TRIAL
+  BUSINESS
+  ENTERPRISE
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  TENANT_ADMIN
+  DEPT_ADMIN
+  USER
+}
+
+enum KBType {
+  VECTOR
+  GRAPH
+}
+
+enum DocStatus {
+  PENDING
+  PROCESSING
+  INDEXED
+  FAILED
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+  TOOL
+}
+
+// ─── TENANT ──────────────────────────────────────────────────────────────────
+
+model Tenant {
+  id               String   @id @default(cuid())
+  clerkOrgId       String   @unique
+  slug             String   @unique
+  name             String
+  plan             Plan     @default(TRIAL)
+  /// JSON matching WhiteLabelConfig interface from @wren/types
+  whiteLabelConfig Json?
+  settings         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  users          TenantUser[]
+  agents         Agent[]
+  knowledgeBases KnowledgeBase[]
+  prompts        Prompt[]
+  chatSessions   ChatSession[]
+  channelConfigs ChannelConfig[]
+  workflows      Workflow[]
+  auditLogs      AuditLog[]
+}
+
+// ─── USER ────────────────────────────────────────────────────────────────────
+
+model TenantUser {
+  id          String   @id @default(cuid())
+  tenantId    String
+  clerkUserId String
+  role        UserRole @default(USER)
+  department  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, clerkUserId])
+  @@index([tenantId])
+}
+
+// ─── AGENT ───────────────────────────────────────────────────────────────────
+
+model Agent {
+  id            String   @id @default(cuid())
+  tenantId      String
+  name          String
+  description   String?
+  systemPrompt  String   @db.Text
+  modelId       String   @default("gpt-4o")
+  memorySize    Int      @default(20)
+  maxTokens     Int      @default(4000)
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  tools         String[]
+  kbInstanceIds String[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  chatSessions ChatSession[]
+
+  @@index([tenantId])
+}
+
+// ─── KNOWLEDGE BASE ───────────────────────────────────────────────────────────
+
+model KnowledgeBase {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  description  String?
+  type         KBType   @default(VECTOR)
+  instructions String?  @db.Text
+  resultLimit  Int      @default(5)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  documents KBDocument[]
+
+  @@index([tenantId])
+}
+
+model KBDocument {
+  id              String     @id @default(cuid())
+  knowledgeBaseId String
+  tenantId        String
+  filename        String
+  fileUrl         String
+  mimeType        String
+  status          DocStatus  @default(PENDING)
+  chunkCount      Int?
+  errorMessage    String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  chunks        KBChunk[]
+
+  @@index([tenantId])
+  @@index([knowledgeBaseId])
+}
+
+model KBChunk {
+  id         String                       @id @default(cuid())
+  documentId String
+  tenantId   String
+  content    String                       @db.Text
+  /// pgvector embedding (1536 dims for text-embedding-3-small)
+  embedding  Unsupported("vector(1536)")?
+  metadata   Json?
+  chunkIndex Int
+  createdAt  DateTime                     @default(now())
+
+  document KBDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([documentId])
+}
+
+// ─── PROMPTS ─────────────────────────────────────────────────────────────────
+
+model Prompt {
+  id                    String   @id @default(cuid())
+  /// null = global/platform prompt; set = tenant-specific prompt
+  tenantId              String?
+  title                 String
+  description           String?
+  category              String
+  department            String
+  difficulty            String   @default("beginner")
+  /// JSON Schema 7 — drives the adaptive form UI (ADR-016)
+  formSchema            Json
+  /// Handlebars template; vars come from form (ADR-016)
+  promptTemplate        String   @db.Text
+  isPublic              Boolean  @default(false)
+  estimatedMinutesSaved Int?
+  usageCount            Int      @default(0)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([department])
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+
+model ChatSession {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  agentId     String
+  channelType String
+  channelId   String
+  title       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent    Agent         @relation(fields: [agentId], references: [id])
+  messages ChatMessage[]
+
+  @@index([tenantId])
+  @@index([userId])
+}
+
+model ChatMessage {
+  id         String      @id @default(cuid())
+  sessionId  String
+  tenantId   String
+  role       MessageRole
+  content    String      @db.Text
+  toolCalls  Json?
+  /// Rule 10 (CONTRIBUTING.md): tokenCount MUST always be populated on assistant messages
+  tokenCount Int?
+  modelId    String?
+  /// Rule 10 (CONTRIBUTING.md): costUsd MUST always be populated on assistant messages
+  costUsd    Float?
+  createdAt  DateTime    @default(now())
+
+  session ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([sessionId])
+}
+
+// ─── CHANNELS ────────────────────────────────────────────────────────────────
+
+model ChannelConfig {
+  id        String   @id @default(cuid())
+  tenantId  String
+  /// ChannelType from @wren/channels (teams|slack|whatsapp|telegram|email|webchat)
+  channel   String
+  config    Json
+  isActive  Boolean  @default(true)
+  agentId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, channel])
+  @@index([tenantId])
+}
+
+// ─── WORKFLOWS ───────────────────────────────────────────────────────────────
+
+model Workflow {
+  id          String    @id @default(cuid())
+  tenantId    String
+  /// n8n workflow ID (ADR-006)
+  n8nId       String
+  name        String
+  description String?
+  category    String?
+  isActive    Boolean   @default(false)
+  runCount    Int       @default(0)
+  lastRunAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+// ─── AUDIT LOG ────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([createdAt])
+}

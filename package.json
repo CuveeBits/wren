@@ -1,0 +1,28 @@
+{
+  "name": "wren",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "db:migrate": "pnpm --filter @wren/db exec prisma migrate dev",
+    "db:seed": "pnpm --filter @wren/db exec prisma db seed",
+    "db:studio": "pnpm --filter @wren/db exec prisma studio"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.0",
+    "prettier": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "pnpm": {
+    "overrides": {
+      "ioredis": "5.9.3"
+    }
+  }
+}

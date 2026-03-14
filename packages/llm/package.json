@@ -1,0 +1,25 @@
+{
+  "name": "@wren/llm",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "handlebars": "^4.7.8",
+    "openai": "^4.28.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/handlebars": "^4.1.0",
+    "@types/node": "^20.0.0",
+    "@wren/config": "workspace:*",
+    "typescript": "^5.4.0"
+  }
+}

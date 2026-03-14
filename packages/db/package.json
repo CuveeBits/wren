@@ -1,0 +1,31 @@
+{
+  "name": "@wren/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/ prisma/",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.10.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@wren/config": "workspace:*",
+    "prisma": "^5.10.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.4.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}

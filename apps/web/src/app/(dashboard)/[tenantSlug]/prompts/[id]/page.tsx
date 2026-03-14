@@ -1,0 +1,306 @@
+'use client'
+
+/**
+ * Prompt detail + execute page — /[tenantSlug]/prompts/[id]
+ *
+ * Left panel: prompt metadata + adaptive form (PromptForm)
+ * Right panel: streaming AI result (react-markdown), copy, retry
+ *
+ * Sprint 1 — Task 1.5
+ */
+import * as React from 'react'
+import { useParams, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import ReactMarkdown from 'react-markdown'
+import { ArrowLeft, Copy, Check, RefreshCw } from 'lucide-react'
+import { Badge, Button, cn } from '@wren/ui'
+import { PromptForm } from '@/components/prompt/PromptForm'
+import type { JSONSchema } from '@/components/prompt/PromptForm'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface Prompt {
+  id: string
+  title: string
+  description: string | null
+  category: string
+  department: string
+  difficulty: string
+  estimatedMinutesSaved: number | null
+  formSchema: JSONSchema
+  promptTemplate: string
+  usageCount: number
+}
+
+const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+
+const DIFFICULTY_VARIANT: Record<
+  string,
+  'default' | 'secondary' | 'outline' | 'destructive'
+> = {
+  beginner: 'secondary',
+  intermediate: 'default',
+  advanced: 'destructive',
+}
+
+// ─── Page component ───────────────────────────────────────────────────────────
+
+export default function PromptDetailPage() {
+  const params = useParams<{ tenantSlug: string; id: string }>()
+  const { tenantSlug, id } = params
+  const router = useRouter()
+
+  const [prompt, setPrompt] = React.useState<Prompt | null>(null)
+  const [isLoadingPrompt, setIsLoadingPrompt] = React.useState(true)
+  const [notFound, setNotFound] = React.useState(false)
+
+  // Result panel state
+  const [result, setResult] = React.useState('')
+  const [isStreaming, setIsStreaming] = React.useState(false)
+  const [tokenCount, setTokenCount] = React.useState<number | null>(null)
+  const [streamError, setStreamError] = React.useState<string | null>(null)
+  const [copied, setCopied] = React.useState(false)
+
+  // Last submitted variables (for retry)
+  const [lastVariables, setLastVariables] = React.useState<Record<string, string> | null>(null)
+
+  // Fetch prompt on mount
+  React.useEffect(() => {
+    setIsLoadingPrompt(true)
+    fetch(`${API_BASE}/api/v1/prompts/${id}`, { credentials: 'include' })
+      .then((r) => {
+        if (r.status === 404) { setNotFound(true); return null }
+        return r.json()
+      })
+      .then((j: { data: Prompt } | null) => {
+        if (j) setPrompt(j.data)
+      })
+      .catch(console.error)
+      .finally(() => setIsLoadingPrompt(false))
+  }, [id])
+
+  // Execute prompt — streams SSE
+  async function execute(variables: Record<string, string>) {
+    setLastVariables(variables)
+    setResult('')
+    setTokenCount(null)
+    setStreamError(null)
+    setIsStreaming(true)
+
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/prompts/${id}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ variables }),
+      })
+
+      if (!res.ok || !res.body) {
+        setStreamError(`Request failed: ${res.status} ${res.statusText}`)
+        setIsStreaming(false)
+        return
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? '' // keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (!raw) continue
+
+          try {
+            const event = JSON.parse(raw) as {
+              type: 'chunk' | 'done' | 'error'
+              content?: string
+              tokenCount?: number
+              message?: string
+            }
+
+            if (event.type === 'chunk' && event.content) {
+              setResult((prev) => prev + event.content)
+            } else if (event.type === 'done') {
+              setTokenCount(event.tokenCount ?? null)
+              setIsStreaming(false)
+            } else if (event.type === 'error') {
+              setStreamError(event.message ?? 'Unknown error')
+              setIsStreaming(false)
+            }
+          } catch {
+            // Skip malformed SSE lines
+          }
+        }
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Network error'
+      setStreamError(message)
+      setIsStreaming(false)
+    }
+  }
+
+  function handleRetry() {
+    if (lastVariables) execute(lastVariables)
+  }
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(result)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // ── Loading / not found states
+  if (isLoadingPrompt) {
+    return (
+      <div className="flex items-center justify-center p-20">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (notFound || !prompt) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 p-20 text-center">
+        <p className="text-lg font-medium">Prompt not found</p>
+        <Button variant="outline" onClick={() => router.push(`/${tenantSlug}/prompts`)}>
+          Back to Library
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      {/* ── Back link ── */}
+      <Link
+        href={`/${tenantSlug}/prompts`}
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Library
+      </Link>
+
+      {/* ── Two-column layout ── */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* ── Left: metadata + form ── */}
+        <div className="flex flex-col gap-5">
+          {/* Metadata */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="capitalize">
+                {prompt.department.replace(/-/g, ' ')}
+              </Badge>
+              <Badge variant={DIFFICULTY_VARIANT[prompt.difficulty] ?? 'secondary'} className="capitalize">
+                {prompt.difficulty}
+              </Badge>
+              {prompt.estimatedMinutesSaved && (
+                <Badge variant="outline">
+                  ⏱ Saves {prompt.estimatedMinutesSaved} min
+                </Badge>
+              )}
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight">{prompt.title}</h1>
+            {prompt.description && (
+              <p className="text-sm text-muted-foreground">{prompt.description}</p>
+            )}
+          </div>
+
+          {/* Form */}
+          <div className="rounded-xl border border-border bg-card p-6">
+            <p className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
+              Fill in the form
+            </p>
+            <PromptForm
+              schema={prompt.formSchema}
+              onSubmit={execute}
+              isLoading={isStreaming}
+            />
+          </div>
+        </div>
+
+        {/* ── Right: result panel ── */}
+        <div className="flex flex-col gap-3">
+          <div
+            className={cn(
+              'flex-1 min-h-[300px] rounded-xl border border-border bg-card p-6',
+              'relative overflow-y-auto'
+            )}
+          >
+            {!result && !streamError && !isStreaming && (
+              <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+                <div className="rounded-full bg-muted p-4">
+                  <span className="text-3xl">✨</span>
+                </div>
+                <p className="text-sm font-medium">Fill in the form and click Generate</p>
+                <p className="text-xs">Your AI result will appear here in real time.</p>
+              </div>
+            )}
+
+            {streamError && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-4 text-sm text-destructive">
+                <p className="font-medium mb-1">Error</p>
+                <p>{streamError}</p>
+              </div>
+            )}
+
+            {(result || isStreaming) && (
+              <div className="prose prose-sm dark:prose-invert max-w-none">
+                <ReactMarkdown>{result}</ReactMarkdown>
+                {isStreaming && (
+                  <span className="inline-block h-4 w-0.5 animate-pulse bg-foreground ml-0.5 translate-y-0.5" />
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer actions */}
+          {(result && !isStreaming) && (
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {tokenCount !== null && (
+                <p className="text-xs text-muted-foreground">
+                  {tokenCount.toLocaleString()} tokens used
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetry}
+                >
+                  <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                  Try again
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopy}
+                >
+                  {copied ? (
+                    <><Check className="mr-1.5 h-3.5 w-3.5" />Copied!</>
+                  ) : (
+                    <><Copy className="mr-1.5 h-3.5 w-3.5" />Copy</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {streamError && lastVariables && (
+            <Button variant="outline" size="sm" onClick={handleRetry} className="w-fit">
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+              Retry
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
