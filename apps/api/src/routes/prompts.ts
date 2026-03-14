@@ -53,7 +53,7 @@ export async function promptRoutes(fastify: FastifyInstance): Promise<void> {
         orderBy: { department: 'asc' },
       })
 
-      return reply.send({ data: rows.map((r) => r.department) })
+      return reply.send({ data: rows.map((r: { department: string }) => r.department) })
     }
   )
 
@@ -73,7 +73,7 @@ export async function promptRoutes(fastify: FastifyInstance): Promise<void> {
         orderBy: { category: 'asc' },
       })
 
-      return reply.send({ data: rows.map((r) => r.category) })
+      return reply.send({ data: rows.map((r: { category: string }) => r.category) })
     }
   )
 

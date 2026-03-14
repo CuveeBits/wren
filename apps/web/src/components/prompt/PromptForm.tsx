@@ -77,12 +77,15 @@ function buildZodSchema(
       if (prop.minimum !== undefined) numSchema = numSchema.min(prop.minimum)
       if (prop.maximum !== undefined) numSchema = numSchema.max(prop.maximum)
       fieldSchema = isRequired ? numSchema : numSchema.optional()
+    } else if (prop.enum && prop.enum.length > 0) {
+      // string enum
+      const enumSchema = z.enum(prop.enum as [string, ...string[]])
+      fieldSchema = isRequired ? enumSchema : enumSchema.optional()
     } else {
-      // string (default)
+      // plain string
       let strSchema = z.string()
       if (prop.minLength !== undefined) strSchema = strSchema.min(prop.minLength, `Minimum ${prop.minLength} characters`)
       if (prop.maxLength !== undefined) strSchema = strSchema.max(prop.maxLength, `Maximum ${prop.maxLength} characters`)
-      if (prop.enum) strSchema = z.enum(prop.enum as [string, ...string[]])
       if (isRequired) strSchema = strSchema.min(1, `${prop.title ?? name} is required`)
       fieldSchema = isRequired ? strSchema : strSchema.optional()
     }
