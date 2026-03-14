@@ -51,3 +51,11 @@ Not because it's clever. Because it's reliable.
 ---
 
 *This document is a living record. We iterate and evolve it — as we continue living it, day by day.*
+
+---
+
+## Killer Lines (use these)
+
+> *Fully AI-operated company ships enterprise AI platform.*
+
+The meta-story is the product story. The founder hired an AI CEO. The AI CEO built the product. The product is what the AI CEO used to build itself. That's the Product Hunt hook, the LinkedIn series, the video angle, the press pitch — all in one sentence.
