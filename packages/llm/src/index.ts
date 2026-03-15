@@ -23,3 +23,5 @@ export type {
 
 export { executePrompt } from './execute'
 export type { ExecuteOptions, StreamChunk } from './execute'
+
+export type { CitationRef } from './execute'

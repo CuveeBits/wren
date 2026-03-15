@@ -24,18 +24,6 @@ enum UserRole {
   USER
 }
 
-enum KBType {
-  VECTOR
-  GRAPH
-}
-
-enum DocStatus {
-  PENDING
-  PROCESSING
-  INDEXED
-  FAILED
-}
-
 enum MessageRole {
   USER
   ASSISTANT
@@ -111,56 +99,75 @@ model Agent {
 // ─── KNOWLEDGE BASE ───────────────────────────────────────────────────────────
 
 model KnowledgeBase {
-  id           String   @id @default(cuid())
-  tenantId     String
-  name         String
-  description  String?
-  type         KBType   @default(VECTOR)
-  instructions String?  @db.Text
-  resultLimit  Int      @default(5)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  tenantId  String   @unique          // one KB per tenant
+  name      String   @default("Knowledge Base")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  documents KBDocument[]
-
-  @@index([tenantId])
+  tenant      Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  collections KbCollection[]
+  documents   KbDocument[]
 }
 
-model KBDocument {
-  id              String     @id @default(cuid())
+model KbCollection {
+  id              String        @id @default(cuid())
   knowledgeBaseId String
-  tenantId        String
-  filename        String
-  fileUrl         String
-  mimeType        String
-  status          DocStatus  @default(PENDING)
-  chunkCount      Int?
-  errorMessage    String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  parentId        String?       // nullable — supports one level of nesting
+  parent          KbCollection?  @relation("CollectionChildren", fields: [parentId], references: [id])
+  children        KbCollection[] @relation("CollectionChildren")
+  name            String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
-  chunks        KBChunk[]
+  documents KbDocument[]
 
-  @@index([tenantId])
   @@index([knowledgeBaseId])
 }
 
-model KBChunk {
-  id         String                       @id @default(cuid())
+model KbDocument {
+  id              String        @id @default(cuid())
+  knowledgeBaseId String
+  knowledgeBase   KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+  collectionId    String?
+  collection      KbCollection? @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  title        String
+  fileName     String
+  mimeType     String        // application/pdf | application/vnd.openxmlformats... | text/plain
+  sizeBytes    Int
+  storageKey   String        // S3 / local path
+  source       String        @default("upload")       // upload | generated
+  status       String        @default("processing")   // processing | ready | error
+  errorMessage String?
+
+  tags     String[] // auto-tagged taxonomy values
+  summary  String?  // short LLM-generated summary
+  metadata Json?    // arbitrary key-value (author, page count, etc.)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  chunks KbChunk[]
+
+  @@index([knowledgeBaseId])
+  @@index([collectionId])
+}
+
+model KbChunk {
+  id         String     @id @default(cuid())
   documentId String
-  tenantId   String
-  content    String                       @db.Text
-  /// pgvector embedding (1536 dims for text-embedding-3-small)
-  embedding  Unsupported("vector(1536)")?
-  metadata   Json?
-  chunkIndex Int
-  createdAt  DateTime                     @default(now())
+  document   KbDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
-  document KBDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  content    String                      @db.Text // raw text of this chunk
+  tokenCount Int
+  chunkIndex Int                                  // position within document
+  pageNumber Int?                                 // for PDFs
+  embedding  Unsupported("vector(768)")?          // nomic-embed-text output dimension
 
-  @@index([tenantId])
+  createdAt DateTime @default(now())
+
   @@index([documentId])
 }
 

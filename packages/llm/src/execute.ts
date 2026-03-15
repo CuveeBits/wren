@@ -1,8 +1,12 @@
 /**
- * Prompt execution engine — Sprint 1.
+ * Prompt execution engine — Sprint 1 + Sprint 2.
  *
  * Renders a Handlebars template with user-supplied variables and streams
  * the result from LiteLLM via SSE-friendly AsyncGenerator.
+ *
+ * Sprint 2 additions (F-05):
+ * - systemMessage?: optional system prompt prepended before user message
+ *   (used to inject KB context chunks)
  *
  * Architecture: ADR-005 / ADR-016
  * Rule 2: this is the ONLY place that calls LiteLLM; imported by apps/api routes.
@@ -30,7 +34,7 @@ Handlebars.registerHelper('trim', (value: unknown) =>
 export interface ExecuteOptions {
   promptTemplate: string
   variables: Record<string, string>
-  /** LiteLLM base URL, e.g. http://localhost:4000/v1 */
+  /** LiteLLM base URL, e.g. http://localhost:4000 */
   litellmBaseUrl: string
   /** LiteLLM API key */
   litellmApiKey: string
@@ -38,14 +42,31 @@ export interface ExecuteOptions {
   modelId?: string
   /** Max tokens. Defaults to 2000. */
   maxTokens?: number
+  /**
+   * Sprint 2 (F-05): Optional system message injected before the user message.
+   * Used to prepend retrieved KB chunks as context.
+   */
+  systemMessage?: string
   stream: true
 }
 
 export interface StreamChunk {
-  type: 'chunk' | 'done' | 'error'
+  type: 'chunk' | 'done' | 'error' | 'citations'
   content?: string
   tokenCount?: number
   message?: string
+  /** Sprint 2 (F-05): citation metadata, sent as a single event before streaming starts */
+  citations?: CitationRef[]
+}
+
+export interface CitationRef {
+  chunkId:          string
+  documentId:       string
+  documentTitle:    string
+  documentFileName: string
+  excerpt:          string
+  pageNumber?:      number
+  chunkIndex:       number
 }
 
 const ExecuteOptionsSchema = z.object({
@@ -55,6 +76,7 @@ const ExecuteOptionsSchema = z.object({
   litellmApiKey: z.string().min(1),
   modelId: z.string().optional(),
   maxTokens: z.number().int().positive().optional(),
+  systemMessage: z.string().optional(),
 })
 
 // ─── Execution engine ─────────────────────────────────────────────────────────
@@ -85,7 +107,7 @@ export async function* executePrompt(
   let renderedPrompt: string
   try {
     const template = Handlebars.compile(options.promptTemplate, {
-      noEscape: true, // prompt templates are plain text, not HTML
+      noEscape: true,
     })
     renderedPrompt = template(options.variables)
   } catch (err) {
@@ -104,11 +126,14 @@ export async function* executePrompt(
   const model = options.modelId ?? MODELS.REASONING
   const maxTokens = options.maxTokens ?? 2000
 
-  const messages: ChatCompletionMessageParam[] = [
-    { role: 'user', content: renderedPrompt },
-  ]
+  // Build message array — prepend system message if KB context provided (F-05)
+  const messages: ChatCompletionMessageParam[] = []
+  if (options.systemMessage) {
+    messages.push({ role: 'system', content: options.systemMessage })
+  }
+  messages.push({ role: 'user', content: renderedPrompt })
 
-  // 3. Stream from LiteLLM with a 30s timeout
+  // 3. Stream from LiteLLM with a 120s timeout
   let tokenCount = 0
   try {
     const stream = await Promise.race<
@@ -121,7 +146,7 @@ export async function* executePrompt(
         stream: true,
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('LiteLLM request timed out after 30s')), 30_000)
+        setTimeout(() => reject(new Error('LiteLLM request timed out after 120s')), 120_000)
       ),
     ])
 
@@ -130,7 +155,6 @@ export async function* executePrompt(
       if (delta) {
         yield { type: 'chunk', content: delta }
       }
-      // Accumulate usage if provided (some LiteLLM versions include it per-chunk)
       const usage = (event as { usage?: { total_tokens?: number } }).usage
       if (usage?.total_tokens) {
         tokenCount = usage.total_tokens

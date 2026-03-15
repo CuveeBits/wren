@@ -2,8 +2,7 @@
  * BullMQ worker entry point — @wren/worker.
  *
  * Architecture: ADR-012 (BullMQ on Redis)
- * Sprint 0: queues are defined but processors are empty stubs.
- * Full processors ship in Sprint 2+ as features are built.
+ * Sprint 2: kb:index processor implemented (F-02, F-03).
  *
  * Rule 5 (CONTRIBUTING.md): Any operation >500ms must be queued here.
  * Every processor must be idempotent.
@@ -12,6 +11,7 @@ import Redis from 'ioredis'
 import { Worker } from 'bullmq'
 import { z } from 'zod'
 import { QUEUE_NAMES, createQueues } from './queues/index'
+import { ingestDocument, type KbIngestJobData } from './kb/ingest'
 
 // ── Config (Rule 7: env vars validated once) ──────────────────────────────────
 const WorkerConfigSchema = z.object({
@@ -46,30 +46,28 @@ connection.on('error', (err) => {
 const _queues = createQueues(connection)
 
 // ── Workers ───────────────────────────────────────────────────────────────────
-// Sprint 0: stub workers that log receipt and do nothing.
-// Replace with real processors as sprints are built.
 
 const workerOptions = {
   connection,
-  concurrency: 5,
+  concurrency: 3,
 }
 
-// kb:index — document ingestion pipeline (Sprint 3)
+// kb:index — document ingestion pipeline (Sprint 2)
 const kbIndexWorker = new Worker(
   QUEUE_NAMES.KB_INDEX,
   async (job) => {
-    console.log(`[${QUEUE_NAMES.KB_INDEX}] Received job ${job.id} — stub processor (Sprint 3)`)
-    // TODO(sprint-3): download file, parse, chunk, queue kb:embed jobs
+    console.log(`[${QUEUE_NAMES.KB_INDEX}] Processing job ${job.id}`)
+    const data = job.data as KbIngestJobData
+    await ingestDocument(data)
   },
   workerOptions
 )
 
-// kb:embed — embedding generation (Sprint 3)
+// kb:embed — individual chunk embedding (kept as stub — ingest handles embedding inline)
 const kbEmbedWorker = new Worker(
   QUEUE_NAMES.KB_EMBED,
   async (job) => {
-    console.log(`[${QUEUE_NAMES.KB_EMBED}] Received job ${job.id} — stub processor (Sprint 3)`)
-    // TODO(sprint-3): generate embeddings via @wren/llm, store KBChunk
+    console.log(`[${QUEUE_NAMES.KB_EMBED}] Received job ${job.id} — embedding handled inline by kb:index`)
   },
   workerOptions
 )
@@ -89,7 +87,6 @@ const notificationWorker = new Worker(
   QUEUE_NAMES.NOTIFICATION_SEND,
   async (job) => {
     console.log(`[${QUEUE_NAMES.NOTIFICATION_SEND}] Received job ${job.id} — stub processor`)
-    // TODO(sprint-4): send via channel adapters
   },
   workerOptions
 )
@@ -99,7 +96,6 @@ const billingWorker = new Worker(
   QUEUE_NAMES.BILLING_METER,
   async (job) => {
     console.log(`[${QUEUE_NAMES.BILLING_METER}] Received job ${job.id} — stub processor`)
-    // TODO(sprint-2): record token usage, compute cost, update tenant usage
   },
   workerOptions
 )
