@@ -12,6 +12,7 @@
  * Sprint 0: nav links are placeholders (no href yet). Real routes ship Sprint 1+.
  */
 import * as React from 'react'
+import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useUser, UserButton } from '@clerk/nextjs'
 import {
@@ -27,8 +28,8 @@ import {
 import {
   LayoutDashboard,
   Sparkles,
+  BookOpen,
   Bot,
-  Database,
   Workflow,
   MessageSquare,
   BarChart2,
@@ -43,9 +44,9 @@ interface DashboardShellProps {
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: <LayoutDashboard />, hrefSuffix: '', sprint: 0 },
-  { label: 'Prompt Library', icon: <Sparkles />, hrefSuffix: '/prompts', sprint: 1 },
+  { label: 'Prompts', icon: <Sparkles />, hrefSuffix: '/prompts', sprint: 1 },
+  { label: 'Knowledge Base', icon: <BookOpen />, hrefSuffix: '/kb', sprint: 2 },
   { label: 'Agents', icon: <Bot />, hrefSuffix: '#', sprint: 2 },
-  { label: 'Knowledge Base', icon: <Database />, hrefSuffix: '#', sprint: 3 },
   { label: 'Workflows', icon: <Workflow />, hrefSuffix: '#', sprint: 4 },
   { label: 'Channels', icon: <MessageSquare />, hrefSuffix: '#', sprint: 4 },
   { label: 'Analytics', icon: <BarChart2 />, hrefSuffix: '#', sprint: 5 },
@@ -56,6 +57,7 @@ const BOTTOM_NAV = [
 ]
 
 export function DashboardShell({ tenantSlug, children }: DashboardShellProps) {
+  const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const { user } = useUser()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
@@ -86,13 +88,14 @@ export function DashboardShell({ tenantSlug, children }: DashboardShellProps) {
               item.hrefSuffix === '#'
                 ? '#'
                 : `/${tenantSlug}${item.hrefSuffix}`
+            const isActive = href !== '#' && (href === `/${tenantSlug}` ? pathname === href : pathname.startsWith(href))
             return (
               <SidebarNavItem
                 key={item.label}
                 icon={item.icon}
                 label={item.label}
                 href={href}
-                active={item.sprint <= 1}
+                active={isActive}
               />
             )
           })}

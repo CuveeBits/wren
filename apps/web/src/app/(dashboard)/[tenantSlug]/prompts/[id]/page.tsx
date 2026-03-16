@@ -12,10 +12,17 @@ import * as React from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
-import { ArrowLeft, Copy, Check, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Copy, Check, RefreshCw, Paperclip } from 'lucide-react'
 import { Badge, Button, cn } from '@wren/ui'
 import { PromptForm } from '@/components/prompt/PromptForm'
 import type { JSONSchema } from '@/components/prompt/PromptForm'
+import { AttachFromKb } from '@/components/kb/AttachFromKb'
+import { CitationPanel } from '@/components/kb/CitationPanel'
+import type { CitationItem } from '@/components/kb/CitationPanel'
+import { SaveToKbToggle } from '@/components/kb/SaveToKbToggle'
+import { KbTagBadge } from '@/components/kb/KbTagBadge'
+import { getKbContext, getKbDocument } from '@/components/kb/api'
+import type { KbContextChunk, KbDocument } from '@/components/kb/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,6 +37,19 @@ interface Prompt {
   formSchema: JSONSchema
   promptTemplate: string
   usageCount: number
+}
+
+interface ToastState {
+  tone: 'success' | 'error'
+  message: string
+}
+
+interface ExecuteEvent {
+  type: 'chunk' | 'done' | 'error' | 'citations'
+  content?: string
+  tokenCount?: number
+  message?: string
+  citations?: CitationItem[]
 }
 
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
@@ -60,6 +80,12 @@ export default function PromptDetailPage() {
   const [tokenCount, setTokenCount] = React.useState<number | null>(null)
   const [streamError, setStreamError] = React.useState<string | null>(null)
   const [copied, setCopied] = React.useState(false)
+  const [citations, setCitations] = React.useState<CitationItem[]>([])
+  const [attachedDocumentIds, setAttachedDocumentIds] = React.useState<string[]>([])
+  const [attachedDocuments, setAttachedDocuments] = React.useState<KbDocument[]>([])
+  const [attachModalOpen, setAttachModalOpen] = React.useState(false)
+  const [saveToKb, setSaveToKb] = React.useState(false)
+  const [toast, setToast] = React.useState<ToastState | null>(null)
 
   // Last submitted variables (for retry)
   const [lastVariables, setLastVariables] = React.useState<Record<string, string> | null>(null)
@@ -85,14 +111,36 @@ export default function PromptDetailPage() {
     setResult('')
     setTokenCount(null)
     setStreamError(null)
+    setCitations([])
     setIsStreaming(true)
 
     try {
+      let kbContext: KbContextChunk[] = []
+      if (attachedDocumentIds.length > 0) {
+        const query =
+          Object.values(variables)
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 500) || prompt.title
+
+        kbContext = await getKbContext({
+          promptId: id,
+          documentIds: attachedDocumentIds,
+          query,
+        })
+      }
+
       const res = await fetch(`${API_BASE}/api/v1/prompts/${id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ variables }),
+        body: JSON.stringify({
+          variables,
+          documentIds: attachedDocumentIds,
+          kbContext,
+          saveToKb,
+        }),
       })
 
       if (!res.ok || !res.body) {
@@ -119,18 +167,21 @@ export default function PromptDetailPage() {
           if (!raw) continue
 
           try {
-            const event = JSON.parse(raw) as {
-              type: 'chunk' | 'done' | 'error'
-              content?: string
-              tokenCount?: number
-              message?: string
-            }
+            const event = JSON.parse(raw) as ExecuteEvent
 
             if (event.type === 'chunk' && event.content) {
               setResult((prev) => prev + event.content)
+            } else if (event.type === 'citations' && event.citations) {
+              setCitations(event.citations)
             } else if (event.type === 'done') {
               setTokenCount(event.tokenCount ?? null)
               setIsStreaming(false)
+              if (saveToKb) {
+                setToast({
+                  tone: 'success',
+                  message: 'Execution completed and the output was queued to save in the knowledge base.',
+                })
+              }
             } else if (event.type === 'error') {
               setStreamError(event.message ?? 'Unknown error')
               setIsStreaming(false)
@@ -144,6 +195,7 @@ export default function PromptDetailPage() {
       const message = err instanceof Error ? err.message : 'Network error'
       setStreamError(message)
       setIsStreaming(false)
+      setToast({ tone: 'error', message })
     }
   }
 
@@ -156,6 +208,25 @@ export default function PromptDetailPage() {
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  React.useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 4000)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  React.useEffect(() => {
+    if (attachedDocumentIds.length === 0) {
+      setAttachedDocuments([])
+      return
+    }
+
+    Promise.all(attachedDocumentIds.map((documentId) => getKbDocument(documentId)))
+      .then((documents) => {
+        setAttachedDocuments(documents.filter((document): document is KbDocument => document !== null))
+      })
+      .catch(console.error)
+  }, [attachedDocumentIds])
 
   // ── Loading / not found states
   if (isLoadingPrompt) {
@@ -218,6 +289,32 @@ export default function PromptDetailPage() {
             <p className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
               Fill in the form
             </p>
+            <div className="mb-4 space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAttachModalOpen(true)}
+                >
+                  <Paperclip className="h-4 w-4" />
+                  Attach from KB
+                </Button>
+                {attachedDocuments.map((document) => (
+                  <button
+                    key={document.id}
+                    type="button"
+                    onClick={() =>
+                      setAttachedDocumentIds((current) =>
+                        current.filter((documentId) => documentId !== document.id)
+                      )
+                    }
+                  >
+                    <KbTagBadge tag={document.title} className="max-w-[180px] truncate" />
+                  </button>
+                ))}
+              </div>
+              <SaveToKbToggle checked={saveToKb} onCheckedChange={setSaveToKb} />
+            </div>
             <PromptForm
               schema={prompt.formSchema}
               onSubmit={execute}
@@ -261,6 +358,8 @@ export default function PromptDetailPage() {
             )}
           </div>
 
+          <CitationPanel citations={citations} />
+
           {/* Footer actions */}
           {(result && !isStreaming) && (
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -301,6 +400,26 @@ export default function PromptDetailPage() {
           )}
         </div>
       </div>
+
+      <AttachFromKb
+        open={attachModalOpen}
+        selectedDocumentIds={attachedDocumentIds}
+        onClose={() => setAttachModalOpen(false)}
+        onConfirm={setAttachedDocumentIds}
+      />
+
+      {toast && (
+        <div
+          className={cn(
+            'fixed bottom-4 right-4 z-50 max-w-sm rounded-xl border px-4 py-3 text-sm shadow-lg',
+            toast.tone === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/50 dark:bg-emerald-950/80 dark:text-emerald-100'
+              : 'border-destructive/30 bg-destructive/10 text-destructive'
+          )}
+        >
+          {toast.message}
+        </div>
+      )}
     </div>
   )
 }

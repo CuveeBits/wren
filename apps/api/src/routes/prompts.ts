@@ -14,10 +14,12 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { z } from 'zod'
 import { db } from '@wren/db'
-import { executePrompt, type CitationRef } from '@wren/llm'
+import { executePrompt } from '@wren/llm'
+import type { CitationRef } from '@wren/llm'
 import { authenticate } from '../plugins/auth'
 import { config } from '../config'
 import { retrieveChunks } from '../services/kb/retrieval'
+import type { KbChunkResult } from '../services/kb/retrieval'
 import { createId } from '@paralleldrive/cuid2'
 
 const ListQuerySchema = z.object({
@@ -33,6 +35,20 @@ const ExecuteBodySchema = z.object({
   variables: z.record(z.string()),
   /** Sprint 2 (F-05): optional KB document IDs for context injection */
   documentIds: z.array(z.string()).max(20).optional(),
+  /** Optional pre-ranked KB chunks from /kb/context. */
+  kbContext: z.array(
+    z.object({
+      id: z.string(),
+      documentId: z.string(),
+      content: z.string(),
+      tokenCount: z.number(),
+      chunkIndex: z.number().int(),
+      pageNumber: z.number().int().nullable().optional(),
+      similarity: z.number(),
+      documentTitle: z.string(),
+      documentFileName: z.string(),
+    })
+  ).max(20).optional(),
   /** Sprint 2 (F-06): save generated output back to KB */
   saveToKb: z.boolean().optional().default(false),
 })
@@ -139,18 +155,24 @@ export async function promptRoutes(fastify: FastifyInstance): Promise<void> {
       })
       if (!prompt) return reply.status(404).send({ error: 'Prompt not found' })
 
-      const { variables, documentIds, saveToKb } = bodyResult.data
+      const { variables, documentIds, kbContext, saveToKb } = bodyResult.data
       const { tenantId } = request.auth
 
       // ── Sprint 2 (F-05): KB context injection ────────────────────────────
       let systemMessage: string | undefined
       let citations: CitationRef[] = []
 
-      if (documentIds && documentIds.length > 0) {
+      const providedChunks: KbChunkResult[] = kbContext ?? []
+
+      if (providedChunks.length > 0 || (documentIds && documentIds.length > 0)) {
         try {
-          // Build a query from the rendered template variables as context
-          const queryHint = Object.values(variables).join(' ').slice(0, 500)
-          const chunks = await retrieveChunks(queryHint, documentIds, 5)
+          const chunks = providedChunks.length > 0
+            ? providedChunks
+            : await retrieveChunks(
+                Object.values(variables).join(' ').slice(0, 500),
+                documentIds ?? [],
+                5
+              )
 
           if (chunks.length > 0) {
             // Build system message with source-cited context
