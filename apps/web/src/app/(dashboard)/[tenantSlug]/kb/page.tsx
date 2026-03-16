@@ -1,0 +1,173 @@
+'use client'
+
+import * as React from 'react'
+import { useParams } from 'next/navigation'
+import { Skeleton } from '@wren/ui'
+import { KbCollectionTree } from '@/components/kb/KbCollectionTree'
+import { KbDocumentCard } from '@/components/kb/KbDocumentCard'
+import { KbSearchBar, type KbSearchValue } from '@/components/kb/KbSearchBar'
+import { KbUploadDropzone } from '@/components/kb/KbUploadDropzone'
+import {
+  createKbCollection,
+  deleteKbCollection,
+  listKbCollections,
+  listKbDocuments,
+  renameKbCollection,
+  type KbCollection,
+  type KbDocument,
+} from '@/components/kb/api'
+
+export default function KbBrowsePage() {
+  const { tenantSlug } = useParams<{ tenantSlug: string }>()
+
+  const [collections, setCollections] = React.useState<KbCollection[]>([])
+  const [documents, setDocuments] = React.useState<KbDocument[]>([])
+  const [selectedCollectionId, setSelectedCollectionId] = React.useState<string | null>(null)
+  const [search, setSearch] = React.useState<KbSearchValue>({ query: '', mode: 'keyword' })
+  const [isLoadingCollections, setIsLoadingCollections] = React.useState(true)
+  const [isLoadingDocuments, setIsLoadingDocuments] = React.useState(true)
+
+  const loadCollections = React.useCallback(async () => {
+    setIsLoadingCollections(true)
+    try {
+      setCollections(await listKbCollections())
+    } finally {
+      setIsLoadingCollections(false)
+    }
+  }, [])
+
+  const loadDocuments = React.useCallback(async () => {
+    setIsLoadingDocuments(true)
+    try {
+      setDocuments(
+        await listKbDocuments({
+          query: search.query,
+          mode: search.mode,
+          collectionId: selectedCollectionId,
+        })
+      )
+    } finally {
+      setIsLoadingDocuments(false)
+    }
+  }, [search, selectedCollectionId])
+
+  React.useEffect(() => {
+    void loadCollections()
+  }, [loadCollections])
+
+  React.useEffect(() => {
+    void loadDocuments()
+  }, [loadDocuments])
+
+  async function handleCreate(name: string, parentId: string | null) {
+    const optimistic: KbCollection = {
+      id: `temp-${Date.now()}`,
+      name,
+      parentId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    }
+    setCollections((current) => [...current, optimistic])
+    try {
+      const created = await createKbCollection(name, parentId)
+      setCollections((current) => current.map((collection) => (collection.id === optimistic.id ? created : collection)))
+    } catch (error) {
+      setCollections((current) => current.filter((collection) => collection.id !== optimistic.id))
+      console.error(error)
+    }
+  }
+
+  async function handleRename(id: string, name: string) {
+    const previous = collections
+    setCollections((current) => current.map((collection) => (collection.id === id ? { ...collection, name } : collection)))
+    try {
+      await renameKbCollection(id, name)
+    } catch (error) {
+      setCollections(previous)
+      console.error(error)
+    }
+  }
+
+  async function handleDelete(id: string) {
+    const previous = collections
+    setCollections((current) => current.filter((collection) => collection.id !== id && collection.parentId !== id))
+    try {
+      await deleteKbCollection(id)
+      await loadDocuments()
+    } catch (error) {
+      setCollections(previous)
+      console.error(error)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6 p-6">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-bold tracking-tight">Knowledge Base</h1>
+        <p className="text-sm text-muted-foreground">
+          Upload, organize, and browse company knowledge for prompt execution and retrieval.
+        </p>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+        <aside className="space-y-4">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            {isLoadingCollections ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, index) => (
+                  <Skeleton key={index} className="h-8 w-full rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <KbCollectionTree
+                collections={collections}
+                selectedCollectionId={selectedCollectionId}
+                onSelect={setSelectedCollectionId}
+                onCreate={handleCreate}
+                onRename={handleRename}
+                onDelete={handleDelete}
+              />
+            )}
+          </div>
+        </aside>
+
+        <section className="space-y-4">
+          <KbSearchBar value={search} onChange={setSearch} />
+          <KbUploadDropzone
+            collectionId={selectedCollectionId}
+            onUploaded={() => {
+              void loadDocuments()
+            }}
+          />
+
+          {isLoadingDocuments ? (
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="space-y-3 rounded-xl border border-border p-5">
+                  <Skeleton className="h-10 w-10 rounded-xl" />
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-5 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ))}
+            </div>
+          ) : documents.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
+              <h2 className="text-lg font-semibold">No documents found</h2>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Try another search or upload a document to start building the KB for {tenantSlug}.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+              {documents.map((document) => (
+                <KbDocumentCard key={document.id} tenantSlug={tenantSlug} document={document} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
+    </div>
+  )
+}
