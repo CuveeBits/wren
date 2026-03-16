@@ -7,8 +7,6 @@
  *
  * Taxonomy: Brand | Product | Competitor | Process | Legal | Customer Research | Other
  */
-import OpenAI from 'openai'
-
 const TAXONOMY = ['Brand', 'Product', 'Competitor', 'Process', 'Legal', 'Customer Research', 'Other'] as const
 export type KbTag = (typeof TAXONOMY)[number]
 
@@ -17,7 +15,13 @@ const LITELLM_API_KEY  = process.env['LITELLM_API_KEY']  ?? 'sk-dev-master-key'
 // Use wren-fast (qwen2.5:7b locally); in production swap to claude-haiku-4-5-20251001
 const TAGGER_MODEL = process.env['TAGGER_MODEL'] ?? 'wren-fast'
 
-const client = new OpenAI({ baseURL: LITELLM_BASE_URL, apiKey: LITELLM_API_KEY })
+function createTimeoutSignal(timeoutMs: number): AbortSignal | undefined {
+  return (
+    AbortSignal as typeof AbortSignal & {
+      timeout?: (ms: number) => AbortSignal
+    }
+  ).timeout?.(timeoutMs)
+}
 
 export async function autoTag(text: string, retries = 2): Promise<KbTag[]> {
   const excerpt = text.slice(0, 2000)
@@ -31,13 +35,30 @@ ${excerpt}`
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await client.chat.completions.create({
-        model: TAGGER_MODEL,
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 100,
-        temperature: 0,
+      const response = await fetch(`${LITELLM_BASE_URL.replace(/\/$/, '')}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LITELLM_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: TAGGER_MODEL,
+          messages: [{ role: 'user', content: prompt }],
+          max_tokens: 100,
+          temperature: 0,
+        }),
+        signal: createTimeoutSignal(30_000),
       })
-      const content = response.choices[0]?.message.content ?? '["Other"]'
+
+      if (!response.ok) {
+        const body = await response.text()
+        throw new Error(`LiteLLM tagger error ${response.status}: ${body}`)
+      }
+
+      const data = (await response.json()) as {
+        choices?: Array<{ message?: { content?: string | null } }>
+      }
+      const content = data.choices?.[0]?.message?.content ?? '["Other"]'
       // Strip markdown code fences if present
       const cleaned = content.replace(/```(?:json)?\n?/g, '').trim()
       const parsed = JSON.parse(cleaned) as unknown

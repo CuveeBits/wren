@@ -9,11 +9,11 @@
  * Job data shape: KbIngestJobData (see below)
  */
 import { db } from '@wren/db'
+import { randomUUID } from 'node:crypto'
 import { parseDocument } from './parser'
 import { chunkText } from './chunker'
 import { embedText } from './embedder'
 import { autoTag } from './tagger'
-import { createId } from '@paralleldrive/cuid2'
 
 export interface KbIngestJobData {
   documentId:     string
@@ -48,7 +48,7 @@ export async function ingestDocument(data: KbIngestJobData): Promise<void> {
     console.log(`[ingest] Embedding ${chunks.length} chunks for document ${documentId}`)
     for (const chunk of chunks) {
       const { embedding } = await embedText(chunk.content)
-      const chunkId = createId()
+      const chunkId = randomUUID()
       const vectorLiteral = `[${embedding.join(',')}]`
 
       await db.$executeRaw`
