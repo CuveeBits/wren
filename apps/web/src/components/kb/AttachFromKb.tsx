@@ -21,6 +21,7 @@ export function AttachFromKb({
   const [documents, setDocuments] = React.useState<KbDocument[]>([])
   const [query, setQuery] = React.useState('')
   const [localSelection, setLocalSelection] = React.useState<string[]>(selectedDocumentIds)
+  const [error, setError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     setLocalSelection(selectedDocumentIds)
@@ -29,7 +30,13 @@ export function AttachFromKb({
   React.useEffect(() => {
     if (!open) return
     const timer = window.setTimeout(() => {
-      listKbDocuments({ query }).then(setDocuments).catch(console.error)
+      setError(null)
+      listKbDocuments({ query })
+        .then(setDocuments)
+        .catch((nextError: unknown) => {
+          setDocuments([])
+          setError(nextError instanceof Error ? nextError.message : 'Failed to load documents.')
+        })
     }, 250)
     return () => window.clearTimeout(timer)
   }, [open, query])
@@ -67,43 +74,49 @@ export function AttachFromKb({
           </div>
 
           <div className="max-h-[420px] space-y-2 overflow-y-auto">
-            {documents.map((document) => {
-              const checked = localSelection.includes(document.id)
-              return (
-                <label
-                  key={document.id}
-                  className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 transition-colors hover:bg-accent/40"
-                >
-                  <Checkbox
-                    checked={checked}
-                    onCheckedChange={(nextChecked) => {
-                      setLocalSelection((current) =>
-                        nextChecked
-                          ? [...current, document.id]
-                          : current.filter((id) => id !== document.id)
-                      )
-                    }}
-                  />
-                  <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <FileText className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{document.title}</p>
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
-                        {document.status}
-                      </span>
+            {error ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                {error}
+              </div>
+            ) : (
+              documents.map((document) => {
+                const checked = localSelection.includes(document.id)
+                return (
+                  <label
+                    key={document.id}
+                    className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 transition-colors hover:bg-accent/40"
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={(nextChecked) => {
+                        setLocalSelection((current) =>
+                          nextChecked
+                            ? [...current, document.id]
+                            : current.filter((id) => id !== document.id)
+                        )
+                      }}
+                    />
+                    <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                      <FileText className="h-4 w-4" />
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {document.collectionName ?? 'Unassigned'} • {document.fileName}
-                    </p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                      {document.summary ?? 'No summary available yet.'}
-                    </p>
-                  </div>
-                </label>
-              )
-            })}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium">{document.title}</p>
+                        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                          {document.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {document.collectionName ?? 'Unassigned'} • {document.fileName}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {document.summary ?? 'No summary available yet.'}
+                      </p>
+                    </div>
+                  </label>
+                )
+              })
+            )}
           </div>
         </div>
 

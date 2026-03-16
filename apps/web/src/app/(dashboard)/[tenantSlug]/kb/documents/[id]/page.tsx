@@ -22,14 +22,21 @@ export default function KbDocumentPage() {
   const [similarDocuments, setSimilarDocuments] = React.useState<KbDocument[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [tagDraft, setTagDraft] = React.useState('')
+  const [loadError, setLoadError] = React.useState<string | null>(null)
+  const [tagError, setTagError] = React.useState<string | null>(null)
 
   React.useEffect(() => {
     async function load() {
       setIsLoading(true)
+      setLoadError(null)
       try {
         const [doc, allDocuments] = await Promise.all([getKbDocument(id), listKbDocuments()])
         setDocument(doc)
         setSimilarDocuments(allDocuments.filter((candidate) => candidate.id !== id).slice(0, 3))
+      } catch (error) {
+        setDocument(null)
+        setSimilarDocuments([])
+        setLoadError(error instanceof Error ? error.message : 'Failed to load document.')
       } finally {
         setIsLoading(false)
       }
@@ -40,6 +47,7 @@ export default function KbDocumentPage() {
 
   async function handleTagUpdate(tags: string[]) {
     if (!document) return
+    setTagError(null)
     const previous = document
     setDocument({ ...document, tags })
     try {
@@ -47,7 +55,7 @@ export default function KbDocumentPage() {
       setDocument(updated)
     } catch (error) {
       setDocument(previous)
-      console.error(error)
+      setTagError(error instanceof Error ? error.message : 'Failed to update tags.')
     }
   }
 
@@ -67,7 +75,7 @@ export default function KbDocumentPage() {
   if (!document) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-20 text-center">
-        <p className="text-lg font-medium">Document not found</p>
+        <p className="text-lg font-medium">{loadError ?? 'Document not found'}</p>
         <Button variant="outline" onClick={() => router.push(`/${tenantSlug}/kb`)}>
           Back to KB
         </Button>
@@ -160,6 +168,12 @@ export default function KbDocumentPage() {
               <h2 className="text-lg font-semibold">Tags</h2>
               <p className="text-sm text-muted-foreground">Add or remove retrieval tags for this document.</p>
             </div>
+
+            {tagError && (
+              <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                {tagError}
+              </div>
+            )}
 
             <div className="mb-4 flex flex-wrap gap-2">
               {document.tags.length > 0 ? (

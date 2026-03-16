@@ -26,11 +26,18 @@ export default function KbBrowsePage() {
   const [search, setSearch] = React.useState<KbSearchValue>({ query: '', mode: 'keyword' })
   const [isLoadingCollections, setIsLoadingCollections] = React.useState(true)
   const [isLoadingDocuments, setIsLoadingDocuments] = React.useState(true)
+  const [collectionsError, setCollectionsError] = React.useState<string | null>(null)
+  const [documentsError, setDocumentsError] = React.useState<string | null>(null)
+  const [actionError, setActionError] = React.useState<string | null>(null)
 
   const loadCollections = React.useCallback(async () => {
     setIsLoadingCollections(true)
+    setCollectionsError(null)
     try {
       setCollections(await listKbCollections())
+    } catch (error) {
+      setCollections([])
+      setCollectionsError(error instanceof Error ? error.message : 'Failed to load collections.')
     } finally {
       setIsLoadingCollections(false)
     }
@@ -38,6 +45,7 @@ export default function KbBrowsePage() {
 
   const loadDocuments = React.useCallback(async () => {
     setIsLoadingDocuments(true)
+    setDocumentsError(null)
     try {
       setDocuments(
         await listKbDocuments({
@@ -46,6 +54,9 @@ export default function KbBrowsePage() {
           collectionId: selectedCollectionId,
         })
       )
+    } catch (error) {
+      setDocuments([])
+      setDocumentsError(error instanceof Error ? error.message : 'Failed to load documents.')
     } finally {
       setIsLoadingDocuments(false)
     }
@@ -60,6 +71,7 @@ export default function KbBrowsePage() {
   }, [loadDocuments])
 
   async function handleCreate(name: string, parentId: string | null) {
+    setActionError(null)
     const optimistic: KbCollection = {
       id: `temp-${Date.now()}`,
       name,
@@ -73,30 +85,30 @@ export default function KbBrowsePage() {
       setCollections((current) => current.map((collection) => (collection.id === optimistic.id ? created : collection)))
     } catch (error) {
       setCollections((current) => current.filter((collection) => collection.id !== optimistic.id))
-      console.error(error)
+      setActionError(error instanceof Error ? error.message : 'Failed to create collection.')
     }
   }
 
   async function handleRename(id: string, name: string) {
+    setActionError(null)
     const previous = collections
     setCollections((current) => current.map((collection) => (collection.id === id ? { ...collection, name } : collection)))
     try {
       await renameKbCollection(id, name)
     } catch (error) {
       setCollections(previous)
-      console.error(error)
+      setActionError(error instanceof Error ? error.message : 'Failed to rename collection.')
     }
   }
 
   async function handleDelete(id: string) {
-    const previous = collections
-    setCollections((current) => current.filter((collection) => collection.id !== id && collection.parentId !== id))
+    setActionError(null)
     try {
       await deleteKbCollection(id)
+      await loadCollections()
       await loadDocuments()
     } catch (error) {
-      setCollections(previous)
-      console.error(error)
+      setActionError(error instanceof Error ? error.message : 'Failed to delete collection.')
     }
   }
 
@@ -109,6 +121,12 @@ export default function KbBrowsePage() {
         </p>
       </div>
 
+      {actionError && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {actionError}
+        </div>
+      )}
+
       <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <div className="rounded-2xl border border-border bg-card p-4">
@@ -117,6 +135,10 @@ export default function KbBrowsePage() {
                 {Array.from({ length: 5 }).map((_, index) => (
                   <Skeleton key={index} className="h-8 w-full rounded-lg" />
                 ))}
+              </div>
+            ) : collectionsError ? (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+                {collectionsError}
               </div>
             ) : (
               <KbCollectionTree
@@ -136,6 +158,7 @@ export default function KbBrowsePage() {
           <KbUploadDropzone
             collectionId={selectedCollectionId}
             onUploaded={() => {
+              setActionError(null)
               void loadDocuments()
             }}
           />
@@ -151,6 +174,10 @@ export default function KbBrowsePage() {
                   <Skeleton className="h-8 w-full" />
                 </div>
               ))}
+            </div>
+          ) : documentsError ? (
+            <div className="rounded-2xl border border-destructive/30 bg-destructive/10 px-6 py-16 text-center text-sm text-destructive">
+              {documentsError}
             </div>
           ) : documents.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
