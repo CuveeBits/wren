@@ -102,14 +102,20 @@
 > ## Sprint Roadmap
 >
 > | Sprint | Focus | Status |
-> |---|---|---|
-> | Sprint 0 | Repo scaffold + infrastructure + auth + DB schema | 🔲 Not started |
-> | Sprint 1 | Prompt library — data model, UI, execution | 🔲 Not started |
-> | Sprint 2 | Knowledge base — upload, indexing, RAG query | 🔲 Not started |
-> | Sprint 3 | Chat interface + first channel adapter (Teams/WebChat) | 🔲 Not started |
-> | Sprint 4 | Agent builder UI + tool dispatch | 🔲 Not started |
-> | Sprint 5 | n8n workflow integration | 🔲 Not started |
-> | Sprint 6 | Slack + WhatsApp adapters + white-label config | 🔲 Not started |
+> |--------|-------|--------|
+> | Sprint 0 | Repo scaffold + infrastructure + auth + DB schema | ✅ Complete |
+> | Sprint 1 | Prompt library — data model, UI, execution | ✅ Complete |
+> | Sprint 2 | Knowledge base — upload, indexing, RAG query | ✅ Complete |
+> | Sprint 3 | Chat interface + first channel adapter (WebChat) | 🔲 Next |
+> | Sprint 4 | Auto-translate — DE/FR/CZ/PL/EN via local Ollama (GDPR-native) | 🔲 Planned |
+> | Sprint 5 | Agent builder UI + tool dispatch + n8n scaffolding | 🔲 Planned |
+> | Sprint 6 | n8n workflow integration (full) | 🔲 Planned |
+> | Sprint 7 | Multi-model selection per tenant + Analytics dashboard | 🔲 Planned |
+> | Sprint 8 | Slack + WhatsApp adapters + white-label config | 🔲 Planned |
+> | Sprint 9 | Social media content pipeline | 🔲 Planned |
+> | Sprint 10 | Billing + usage tracking | 🔲 Planned |
+>
+> **Nova CRM** is a separate product epic — own backlog, own sprints. Not part of Wren core.
 >
 > ---
 >
