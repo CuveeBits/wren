@@ -122,17 +122,19 @@ export function KbCollectionTree({
 
           {!isEditing && (
             <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setParentId(node.id)
-                  setDraftName('')
-                }}
-                className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-                aria-label="Create sub-collection"
-              >
-                <Plus className="h-3.5 w-3.5" />
-              </button>
+              {node.parentId === null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParentId(node.id)
+                    setDraftName('')
+                  }}
+                  className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+                  aria-label="Create sub-collection"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => {

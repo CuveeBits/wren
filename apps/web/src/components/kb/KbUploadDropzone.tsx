@@ -29,14 +29,20 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
     if (!currentDocumentId || state !== 'processing') return
 
     const timer = window.setInterval(async () => {
-      const status = await getKbDocumentStatus(currentDocumentId)
-      if (status === 'ready') {
-        setState('ready')
-        setMessage('Upload complete. Document is indexed and ready.')
-        window.clearInterval(timer)
-      } else if (status === 'error') {
+      try {
+        const status = await getKbDocumentStatus(currentDocumentId)
+        if (status === 'ready') {
+          setState('ready')
+          setMessage('Upload complete. Document is indexed and ready.')
+          window.clearInterval(timer)
+        } else if (status === 'error') {
+          setState('error')
+          setMessage('Upload finished, but processing failed.')
+          window.clearInterval(timer)
+        }
+      } catch (error) {
         setState('error')
-        setMessage('Upload finished, but processing failed.')
+        setMessage(error instanceof Error ? error.message : 'Failed to check document status.')
         window.clearInterval(timer)
       }
     }, 2000)
