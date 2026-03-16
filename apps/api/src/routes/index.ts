@@ -5,6 +5,7 @@
 import type { FastifyInstance } from 'fastify'
 import type Redis from 'ioredis'
 import { healthRoutes } from './health'
+import { kbRoutes } from './kb'
 import { promptRoutes } from './prompts'
 import { kbContextRoutes } from './kb/context'
 
@@ -22,7 +23,8 @@ export async function registerRoutes(
   // Versioned API routes
   await fastify.register(
     async (v1) => {
-      await v1.register(promptRoutes,    { prefix: '/prompts' })
+      await v1.register(promptRoutes, { prefix: '/prompts' })
+      await v1.register(kbRoutes, { prefix: '/kb', redis: options.redis })
       await v1.register(kbContextRoutes, { prefix: '/kb/context' })
     },
     { prefix: '/api/v1' }
