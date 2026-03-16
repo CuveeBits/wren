@@ -15,6 +15,7 @@ import { authenticate } from '../../plugins/auth'
 import { retrieveChunks } from '../../services/kb/retrieval'
 
 const ContextBodySchema = z.object({
+  promptId:     z.string().optional(),
   documentIds: z.array(z.string().cuid()).min(1).max(20),
   query:       z.string().min(1).max(2000),
   topK:        z.number().int().min(1).max(20).default(5),

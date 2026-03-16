@@ -18,6 +18,18 @@ export interface KbChunkPreview {
   pageNumber?: number
 }
 
+export interface KbContextChunk {
+  id: string
+  documentId: string
+  content: string
+  tokenCount: number
+  chunkIndex: number
+  pageNumber?: number | null
+  similarity: number
+  documentTitle: string
+  documentFileName: string
+}
+
 export interface KbDocument {
   id: string
   title: string
@@ -83,12 +95,32 @@ export async function listKbCollections(): Promise<KbCollection[]> {
 export async function listKbDocuments(
   options: ListDocumentsOptions = {}
 ): Promise<KbDocument[]> {
-  const { query = '', collectionId } = options
+  const { query = '', mode = 'keyword', collectionId } = options
   const qs = new URLSearchParams()
   if (query) qs.set('q', query)
+  qs.set('mode', mode)
   if (collectionId) qs.set('collectionId', collectionId)
-  const json = await fetchJson<{ data: KbDocument[] }>(`/api/v1/kb/documents?${qs}`, {
+  const path = query ? '/api/v1/kb/search' : '/api/v1/kb/documents'
+  const json = await fetchJson<{ data: KbDocument[] }>(`${path}?${qs}`, {
     credentials: 'include',
+  })
+  return json.data
+}
+
+interface GetKbContextOptions {
+  promptId: string
+  documentIds: string[]
+  query: string
+}
+
+export async function getKbContext(
+  options: GetKbContextOptions
+): Promise<KbContextChunk[]> {
+  const json = await fetchJson<{ data: KbContextChunk[] }>('/api/v1/kb/context', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(options),
   })
   return json.data
 }
