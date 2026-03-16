@@ -55,8 +55,11 @@ export async function kbContextRoutes(fastify: FastifyInstance): Promise<void> {
       })
       const ownedIds = ownedDocs.map((d) => d.id)
 
-      if (ownedIds.length === 0) {
-        return reply.status(403).send({ error: 'None of the requested documents belong to your knowledge base' })
+      if (ownedIds.length !== documentIds.length) {
+        return reply.status(403).send({
+          error: 'Forbidden',
+          message: 'One or more documents do not belong to your organisation',
+        })
       }
 
       const chunks = await retrieveChunks(query, ownedIds, topK)

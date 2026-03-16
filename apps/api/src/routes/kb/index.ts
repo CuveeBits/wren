@@ -9,7 +9,7 @@ import type { Prisma } from '@wren/db'
 import { db } from '@wren/db'
 import { z } from 'zod'
 import { authenticate } from '../../plugins/auth'
-import { searchChunks } from '../../services/kb/retrieval'
+import { searchChunksKeyword, searchChunksSemantic } from '../../services/kb/retrieval'
 
 const KB_INDEX_QUEUE = 'kb:index'
 const KB_NAME = 'Knowledge Base'
@@ -52,6 +52,7 @@ const DocumentUpdateSchema = z.object({
 const SearchQuerySchema = z.object({
   q: z.string().trim().min(1).max(2000),
   limit: z.coerce.number().int().min(1).max(20).default(10),
+  mode: z.enum(['semantic', 'keyword']).optional(),
 })
 
 interface KbRouteOptions {
@@ -490,7 +491,10 @@ export async function kbRoutes(
       }
 
       const kb = await ensureKnowledgeBase(request.auth.tenantId)
-      const chunks = await searchChunks(queryResult.data.q, kb.id, queryResult.data.limit)
+      const chunks =
+        queryResult.data.mode === 'semantic'
+          ? await searchChunksSemantic(queryResult.data.q, kb.id, queryResult.data.limit)
+          : await searchChunksKeyword(queryResult.data.q, kb.id, queryResult.data.limit)
       return reply.send({ data: chunks })
     }
   )
