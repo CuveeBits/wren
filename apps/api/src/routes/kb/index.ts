@@ -71,6 +71,23 @@ interface ParsedMultipartUpload {
   fields: ParsedMultipartFieldMap
 }
 
+type DocumentWithRelations = Prisma.KbDocumentGetPayload<{
+  include: {
+    collection: { select: { id: true, name: true, parentId: true } }
+    _count: { select: { chunks: true } }
+  }
+}>
+
+function mapDocument(document: DocumentWithRelations) {
+  const { collection, _count, ...rest } = document
+
+  return {
+    ...rest,
+    collectionName: collection?.name ?? null,
+    chunkCount: _count?.chunks ?? 0,
+  }
+}
+
 export async function kbRoutes(
   fastify: FastifyInstance,
   options: KbRouteOptions
@@ -260,7 +277,7 @@ export async function kbRoutes(
         orderBy: [{ updatedAt: 'desc' }, { title: 'asc' }],
       })
 
-      return reply.send({ data: documents })
+      return reply.send({ data: documents.map(mapDocument) })
     }
   )
 
@@ -278,7 +295,7 @@ export async function kbRoutes(
         },
       })
       if (!document) return reply.status(404).send({ error: 'Document not found' })
-      return reply.send({ data: document })
+      return reply.send({ data: mapDocument(document) })
     }
   )
 
@@ -418,7 +435,7 @@ export async function kbRoutes(
         },
       })
 
-      return reply.send({ data: updated })
+      return reply.send({ data: mapDocument(updated) })
     }
   )
 
