@@ -62,9 +62,9 @@ export async function retrieveChunks(
 }
 
 /**
- * Full-text + semantic hybrid search across all chunks in a knowledge base.
+ * Semantic search across all chunks in a knowledge base using pgvector ANN.
  */
-export async function searchChunks(
+export async function searchChunksSemantic(
   query: string,
   knowledgeBaseId: string,
   topK = 10
@@ -87,11 +87,37 @@ export async function searchChunks(
     JOIN "KbDocument" d ON d."id" = c."documentId"
     WHERE d."knowledgeBaseId" = ${knowledgeBaseId}
       AND c."embedding" IS NOT NULL
-      AND (
-        c."embedding" <=> ${vectorStr}::vector < 0.5
-        OR to_tsvector('english', c."content") @@ plainto_tsquery('english', ${query})
-      )
     ORDER BY c."embedding" <=> ${vectorStr}::vector
+    LIMIT ${topK}
+  `
+
+  return results
+}
+
+/**
+ * Full-text search across all chunks in a knowledge base.
+ */
+export async function searchChunksKeyword(
+  query: string,
+  knowledgeBaseId: string,
+  topK = 10
+): Promise<KbChunkResult[]> {
+  const results = await db.$queryRaw<KbChunkResult[]>`
+    SELECT
+      c."id",
+      c."documentId",
+      c."content",
+      c."tokenCount",
+      c."chunkIndex",
+      c."pageNumber",
+      ts_rank(to_tsvector('english', c."content"), plainto_tsquery('english', ${query})) AS "similarity",
+      d."title"    AS "documentTitle",
+      d."fileName" AS "documentFileName"
+    FROM "KbChunk"    c
+    JOIN "KbDocument" d ON d."id" = c."documentId"
+    WHERE d."knowledgeBaseId" = ${knowledgeBaseId}
+      AND to_tsvector('english', c."content") @@ plainto_tsquery('english', ${query})
+    ORDER BY "similarity" DESC, c."chunkIndex" ASC
     LIMIT ${topK}
   `
 
