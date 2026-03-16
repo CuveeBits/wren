@@ -17,10 +17,12 @@ import { Badge, Button, cn } from '@wren/ui'
 import { PromptForm } from '@/components/prompt/PromptForm'
 import type { JSONSchema } from '@/components/prompt/PromptForm'
 import { AttachFromKb } from '@/components/kb/AttachFromKb'
-import { CitationPanel, type CitationItem } from '@/components/kb/CitationPanel'
+import { CitationPanel } from '@/components/kb/CitationPanel'
+import type { CitationItem } from '@/components/kb/CitationPanel'
 import { SaveToKbToggle } from '@/components/kb/SaveToKbToggle'
 import { KbTagBadge } from '@/components/kb/KbTagBadge'
-import { getKbDocument, type KbDocument } from '@/components/kb/api'
+import { getKbContext, getKbDocument } from '@/components/kb/api'
+import type { KbContextChunk, KbDocument } from '@/components/kb/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,6 +42,14 @@ interface Prompt {
 interface ToastState {
   tone: 'success' | 'error'
   message: string
+}
+
+interface ExecuteEvent {
+  type: 'chunk' | 'done' | 'error' | 'citations'
+  content?: string
+  tokenCount?: number
+  message?: string
+  citations?: CitationItem[]
 }
 
 const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
@@ -105,6 +115,22 @@ export default function PromptDetailPage() {
     setIsStreaming(true)
 
     try {
+      let kbContext: KbContextChunk[] = []
+      if (attachedDocumentIds.length > 0) {
+        const query =
+          Object.values(variables)
+          .map((value) => value.trim())
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 500) || prompt.title
+
+        kbContext = await getKbContext({
+          promptId: id,
+          documentIds: attachedDocumentIds,
+          query,
+        })
+      }
+
       const res = await fetch(`${API_BASE}/api/v1/prompts/${id}/execute`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -112,6 +138,7 @@ export default function PromptDetailPage() {
         body: JSON.stringify({
           variables,
           documentIds: attachedDocumentIds,
+          kbContext,
           saveToKb,
         }),
       })
@@ -140,13 +167,7 @@ export default function PromptDetailPage() {
           if (!raw) continue
 
           try {
-            const event = JSON.parse(raw) as {
-              type: 'chunk' | 'done' | 'error' | 'citations'
-              content?: string
-              tokenCount?: number
-              message?: string
-              citations?: CitationItem[]
-            }
+            const event = JSON.parse(raw) as ExecuteEvent
 
             if (event.type === 'chunk' && event.content) {
               setResult((prev) => prev + event.content)
