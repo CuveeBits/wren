@@ -2,7 +2,7 @@
  * Dashboard home page — /dashboard/[tenantSlug]
  */
 import Link from 'next/link'
-import { Sparkles } from 'lucide-react'
+import { BookOpen, Sparkles } from 'lucide-react'
 import { currentUser } from '@clerk/nextjs/server'
 
 interface DashboardPageProps {
@@ -50,17 +50,30 @@ export default async function DashboardPage({ params }: DashboardPageProps) {
           </span>
         </Link>
 
+        <Link
+          href={`/${tenantSlug}/kb`}
+          className="group flex flex-col gap-2 rounded-lg border border-border bg-card p-6 transition-all hover:shadow-md hover:-translate-y-0.5"
+        >
+          <div className="flex items-center gap-2">
+            <BookOpen className="h-5 w-5 text-primary" />
+            <h3 className="font-semibold group-hover:text-primary transition-colors">
+              Knowledge Base
+            </h3>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Upload, tag, and organize documents for retrieval-backed prompt execution.
+          </p>
+          <span className="mt-1 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary font-medium">
+            Ready to use
+          </span>
+        </Link>
+
         {/* Future sprints — placeholder cards */}
         {[
           {
             title: 'Agent Builder',
             description: 'Create and configure AI agents',
             sprint: 'Sprint 2',
-          },
-          {
-            title: 'Knowledge Base',
-            description: 'Upload and index company documents',
-            sprint: 'Sprint 3',
           },
           {
             title: 'Workflow Builder',
