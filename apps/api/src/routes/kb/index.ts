@@ -222,7 +222,7 @@ export async function kbRoutes(
     '/documents',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const queryResult = DocumentListQuerySchema.safeParse(request.query)
+      const queryResult = DocumentListQuerySchema.safeParse(getRequestQuery(request))
       if (!queryResult.success) {
         return reply.status(422).send({
           error: 'Validation error',
@@ -290,12 +290,23 @@ export async function kbRoutes(
       try {
         parsed = await parseMultipartUpload(request)
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Invalid multipart upload'
+        const message = getErrorMessage(error, 'Invalid multipart upload')
         const statusCode = message.includes('File too large') ? 413 : 422
-        return reply.status(statusCode).send({ error: message })
+        return reply.status(statusCode === 422 ? 400 : statusCode).send({
+          error: 'Validation error',
+          message,
+        })
       }
 
-      const kb = await ensureKnowledgeBase(request.auth.tenantId)
+      let kb: Awaited<ReturnType<typeof ensureKnowledgeBase>>
+      try {
+        kb = await ensureKnowledgeBase(request.auth.tenantId)
+      } catch (error) {
+        return reply.status(500).send({
+          error: 'Storage failure',
+          message: getErrorMessage(error, 'Failed to initialize knowledge base'),
+        })
+      }
       const collectionId = getSingleField(parsed.fields, 'collectionId')
       const requestedTitle = getSingleField(parsed.fields, 'title')
 
@@ -313,8 +324,15 @@ export async function kbRoutes(
       const storageKey = join(request.auth.tenantId, `${hashedPrefix}-${safeName}`)
       const filePath = join(UPLOAD_ROOT, storageKey)
 
-      await mkdir(join(UPLOAD_ROOT, request.auth.tenantId), { recursive: true })
-      await writeFile(filePath, parsed.file.buffer)
+      try {
+        await mkdir(join(UPLOAD_ROOT, request.auth.tenantId), { recursive: true })
+        await writeFile(filePath, parsed.file.buffer)
+      } catch (error) {
+        return reply.status(500).send({
+          error: 'Storage failure',
+          message: getErrorMessage(error, 'Failed to persist uploaded file'),
+        })
+      }
 
       const title = requestedTitle?.trim() || stripExtension(safeName)
 
@@ -446,7 +464,7 @@ export async function kbRoutes(
     '/search',
     { preHandler: [authenticate] },
     async (request: FastifyRequest, reply: FastifyReply) => {
-      const queryResult = SearchQuerySchema.safeParse(request.query)
+      const queryResult = SearchQuerySchema.safeParse(getRequestQuery(request))
       if (!queryResult.success) {
         return reply.status(422).send({
           error: 'Validation error',
@@ -459,6 +477,14 @@ export async function kbRoutes(
       return reply.send({ data: chunks })
     }
   )
+}
+
+function getRequestQuery(request: FastifyRequest) {
+  return request.query as Record<string, unknown>
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
 }
 
 async function ensureKnowledgeBase(tenantId: string) {
