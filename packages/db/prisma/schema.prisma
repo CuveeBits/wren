@@ -149,7 +149,8 @@ model KbDocument {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  chunks KbChunk[]
+  chunks              KbChunk[]
+  conversationLinks   ConversationDocument[]
 
   @@index([knowledgeBaseId])
   @@index([collectionId])
@@ -297,4 +298,73 @@ model AuditLog {
 
   @@index([tenantId])
   @@index([createdAt])
+}
+
+// ─── CHAT (Sprint 3) ──────────────────────────────────────────────────────────
+
+model Conversation {
+  id                   String                 @id @default(cuid())
+  tenantId             String
+  userId               String                 // Clerk user ID (app) or widget session key (webchat)
+  channel              String                 @default("app")  // app | webchat
+  title                String?                // auto-generated from first user turn (async)
+  status               String                 @default("active")  // active | archived
+  systemPromptSnapshot String?                @db.Text           // frozen at conversation start
+  lastMessageAt        DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  messages     Message[]
+  attachments  ConversationDocument[]
+
+  @@index([tenantId, userId, lastMessageAt])
+  @@index([tenantId, channel, createdAt])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  role           String       // system | user | assistant | tool
+  content        String       @db.Text
+  contentText    String?      @db.Text  // plain text for search indexing
+  status         String       @default("complete")  // streaming | complete | error
+  model          String?
+  tokenInput     Int?
+  tokenOutput    Int?
+  errorMessage   String?
+  citations      Json?        // [{ documentId, chunkId, label, pageNumber, excerpt }]
+  metadata       Json?
+
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+model ConversationDocument {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  documentId     String
+  document       KbDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, documentId])
+  @@index([documentId])
+}
+
+model TenantChatSettings {
+  id             String   @id @default(cuid())
+  tenantId       String   @unique
+  systemPrompt   String?  @db.Text     // max 8000 chars enforced in API
+  welcomeMessage String?  @db.Text
+  launcherLabel  String?  @default("Chat with us")
+  logoUrl        String?
+  brandColor     String?  @default("#0F172A")
+  accentColor    String?  @default("#22C55E")
+  widgetTitle    String?  @default("Wren Assistant")
+  allowedOrigins String[] // exact origins permitted to load WebChat iframe
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
