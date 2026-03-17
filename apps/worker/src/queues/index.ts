@@ -19,6 +19,7 @@ export const QUEUE_NAMES = {
   WORKFLOW_TRIGGER: 'workflow-trigger',
   REPORT_GENERATE: 'report-generate',
   BILLING_METER: 'billing-meter',
+  CONVERSATION_TITLE: 'conversation-title',
 } as const
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES]
@@ -44,5 +45,6 @@ export function createQueues(connection: Redis): Record<QueueName, Queue> {
     [QUEUE_NAMES.WORKFLOW_TRIGGER]: new Queue(QUEUE_NAMES.WORKFLOW_TRIGGER, defaultOptions),
     [QUEUE_NAMES.REPORT_GENERATE]: new Queue(QUEUE_NAMES.REPORT_GENERATE, defaultOptions),
     [QUEUE_NAMES.BILLING_METER]: new Queue(QUEUE_NAMES.BILLING_METER, defaultOptions),
+    [QUEUE_NAMES.CONVERSATION_TITLE]: new Queue(QUEUE_NAMES.CONVERSATION_TITLE, defaultOptions),
   } as Record<QueueName, Queue>
 }

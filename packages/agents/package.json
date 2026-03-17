@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@wren/llm": "workspace:*",
-    "@wren/types": "workspace:*"
+    "@wren/types": "workspace:*",
+    "ioredis": "*"
   },
   "devDependencies": {
     "@wren/config": "workspace:*",

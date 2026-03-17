@@ -9,20 +9,12 @@
  * Rule 1: Always filter by documentIds (tenant-scoped via knowledgeBaseId).
  */
 import { db } from '@wren/db'
+import type { KbChunkResult } from '@wren/types'
+
+// Re-export for backwards compat (consumers in this package can import locally)
+export type { KbChunkResult }
 
 const OLLAMA_BASE_URL = process.env['OLLAMA_BASE_URL'] ?? 'http://localhost:11434'
-
-export interface KbChunkResult {
-  id:               string
-  documentId:       string
-  content:          string
-  tokenCount:       number
-  chunkIndex:       number
-  pageNumber:       number | null
-  similarity:       number
-  documentTitle:    string
-  documentFileName: string
-}
 
 /**
  * Retrieve top-k semantically relevant chunks for the given query
