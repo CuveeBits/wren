@@ -6,7 +6,7 @@
  * Usage: pnpm db:seed
  * Requires: SEED_CLERK_USER_ID env var (your Clerk user ID)
  */
-import { PrismaClient, Plan, UserRole, KBType } from '@prisma/client'
+import { PrismaClient, Plan, UserRole } from '@prisma/client'
 import { seedPrompts } from './seed-prompts'
 
 const db = new PrismaClient()
@@ -91,9 +91,8 @@ async function main(): Promise<void> {
       id: `demo-kb-${tenant.id}`,
       tenantId: tenant.id,
       name: 'Company Knowledge',
-      description: 'Core company knowledge base',
-      type: KBType.VECTOR,
-      resultLimit: 5,
+      
+      // type: KBType.VECTOR,
     },
   })
   console.log(`✅ KnowledgeBase created: ${kb.id} (name: ${kb.name})`)

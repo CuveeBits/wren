@@ -38,6 +38,10 @@ async function start(): Promise<void> {
   })
 
   // ── Plugins ──────────────────────────────────────────────────────────────────
+  // Accept multipart/form-data as raw buffer for KB upload route (Spark custom parser)
+  fastify.addContentTypeParser('multipart/form-data', { parseAs: 'buffer' }, (_req, body, done) => {
+    done(null, body)
+  })
   await corsPlugin(fastify)
   await rateLimitPlugin(fastify)
   await authPlugin(fastify)

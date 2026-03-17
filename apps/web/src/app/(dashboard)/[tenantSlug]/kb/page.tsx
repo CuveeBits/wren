@@ -60,7 +60,7 @@ export default function KbBrowsePage() {
     } finally {
       setIsLoadingDocuments(false)
     }
-  }, [search, selectedCollectionId])
+  }, [search.query, search.mode, selectedCollectionId])
 
   React.useEffect(() => {
     void loadCollections()

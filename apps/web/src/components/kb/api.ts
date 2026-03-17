@@ -63,8 +63,11 @@ const ACCEPTED_TYPES = new Set([
   'text/plain',
 ])
 
-async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T | null> {
   const res = await fetch(`${API_BASE}${path}`, init)
+  if (res.status === 401) {
+    return null
+  }
   if (!res.ok) {
     throw new Error(`Request failed: ${res.status}`)
   }
@@ -89,7 +92,7 @@ export async function listKbCollections(): Promise<KbCollection[]> {
   const json = await fetchJson<{ data: KbCollection[] }>('/api/v1/kb/collections', {
     credentials: 'include',
   })
-  return json.data
+  return json?.data ?? []
 }
 
 export async function listKbDocuments(
@@ -104,7 +107,7 @@ export async function listKbDocuments(
   const json = await fetchJson<{ data: KbDocument[] }>(`${path}?${qs}`, {
     credentials: 'include',
   })
-  return json.data
+  return json?.data ?? []
 }
 
 interface GetKbContextOptions {
@@ -122,14 +125,14 @@ export async function getKbContext(
     credentials: 'include',
     body: JSON.stringify(options),
   })
-  return json.data
+  return json?.data ?? []
 }
 
 export async function getKbDocument(id: string): Promise<KbDocument | null> {
   const json = await fetchJson<{ data: KbDocument }>(`/api/v1/kb/documents/${id}`, {
     credentials: 'include',
   })
-  return json.data
+  return json?.data ?? null
 }
 
 export async function createKbCollection(
@@ -142,7 +145,7 @@ export async function createKbCollection(
     credentials: 'include',
     body: JSON.stringify({ name, parentId }),
   })
-  return json.data
+  return json?.data ?? []
 }
 
 export async function renameKbCollection(id: string, name: string): Promise<KbCollection> {
@@ -152,7 +155,7 @@ export async function renameKbCollection(id: string, name: string): Promise<KbCo
     credentials: 'include',
     body: JSON.stringify({ name }),
   })
-  return json.data
+  return json?.data ?? []
 }
 
 export async function deleteKbCollection(id: string): Promise<void> {
@@ -172,7 +175,7 @@ export async function updateKbDocumentTags(id: string, tags: string[]): Promise<
     credentials: 'include',
     body: JSON.stringify({ tags }),
   })
-  return json.data
+  return json?.data ?? []
 }
 
 export async function uploadKbDocument(
@@ -218,5 +221,13 @@ export async function getKbDocumentStatus(id: string): Promise<KbDocumentStatus>
       credentials: 'include',
     }
   )
-  return json.data.status
+  return json?.data?.status ?? null
+}
+
+export async function deleteKbDocument(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/kb/documents/${id}`, {
+    method: 'DELETE',
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error(`Delete failed: ${res.status}`)
 }
