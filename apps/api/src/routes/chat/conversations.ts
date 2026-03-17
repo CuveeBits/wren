@@ -24,6 +24,7 @@ import {
   createConversation,
   getConversation,
   archiveConversation,
+  updateConversation,
   sendMessageStream,
   listMessages,
   attachDocument,
@@ -57,8 +58,12 @@ const SendMessageBodySchema = z.object({
   content: z.string().trim().min(1).max(32_000),
 })
 
+const UpdateConversationBodySchema = z.object({
+  title: z.string().trim().min(1).max(80),
+})
+
 const AttachDocumentBodySchema = z.object({
-  documentId: z.string().min(1),
+  documentIds: z.array(z.string().min(1)).min(1).max(20),
 })
 
 // ── SSE helpers ───────────────────────────────────────────────────────────────
@@ -156,6 +161,35 @@ export async function chatConversationRoutes(fastify: FastifyInstance): Promise<
       const result = await archiveConversation(id, request.auth.tenantId)
       if (!result) {
         // Return 403 for owned resources per security spec (not 404)
+        return reply.status(403).send({ error: 'Conversation not found or access denied' })
+      }
+
+      return reply.send({ data: result })
+    }
+  )
+
+  // ── S-08: PATCH /chat/conversations/:id (title update) ───────────────────
+  fastify.patch(
+    '/:id',
+    { preHandler: [authenticate] },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      const { id } = request.params as { id: string }
+
+      const bodyResult = UpdateConversationBodySchema.safeParse(request.body)
+      if (!bodyResult.success) {
+        return reply.status(400).send({
+          error: 'Validation error',
+          fields: bodyResult.error.flatten().fieldErrors,
+        })
+      }
+
+      const result = await updateConversation({
+        id,
+        tenantId: request.auth.tenantId,
+        title: bodyResult.data.title,
+      })
+
+      if (!result) {
         return reply.status(403).send({ error: 'Conversation not found or access denied' })
       }
 
@@ -314,20 +348,24 @@ export async function chatConversationRoutes(fastify: FastifyInstance): Promise<
         })
       }
 
-      const attachment = await attachDocument({
-        conversationId: id,
-        tenantId: request.auth.tenantId,
-        documentId: bodyResult.data.documentId,
-      })
+      const attachments = await Promise.all(
+        bodyResult.data.documentIds.map((documentId) =>
+          attachDocument({
+            conversationId: id,
+            tenantId: request.auth.tenantId,
+            documentId,
+          })
+        )
+      )
 
-      if (!attachment) {
-        // 403 — either conversation not found or document not in tenant's KB
+      // If any attachment failed (null), the document was not found or access denied
+      if (attachments.some((a) => a === null)) {
         return reply.status(403).send({
-          error: 'Conversation or document not found, or access denied',
+          error: 'One or more documents not found, or access denied',
         })
       }
 
-      return reply.status(201).send({ data: attachment })
+      return reply.status(201).send({ data: attachments })
     }
   )
 

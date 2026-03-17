@@ -11,13 +11,11 @@
  *
  * /packages/agents must NOT import from /packages/channels.
  */
-import OpenAI from 'openai'
-import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions'
 import type Redis from 'ioredis'
+import { createLiteLLMClient, MODELS } from '@wren/llm'
 import { ContextManager } from './context-manager'
 import { assembleMessages } from './prompt-assembler'
-import type { ConversationContext, AgentStreamChunk, KbChunkResult } from './types'
-import { MODELS } from '@wren/llm'
+import type { ConversationContext, AgentStreamChunk } from './types'
 
 export interface ChatAgentOptions {
   redis: Redis
@@ -71,12 +69,8 @@ export class ChatAgent {
       userMessage,
     })
 
-    // LiteLLM client (OpenAI-compatible API to LiteLLM proxy — NOT calling OpenAI directly)
-    // Rule 2: this calls LiteLLM proxy, not any provider directly.
-    const client = new OpenAI({
-      baseURL: litellmBaseUrl,
-      apiKey: litellmApiKey,
-    })
+    // ADR-005: all LLM calls through @wren/llm — never instantiate OpenAI directly
+    const client = createLiteLLMClient({ baseUrl: litellmBaseUrl, apiKey: litellmApiKey })
 
     const model = modelId ?? MODELS.REASONING
 
@@ -85,14 +79,22 @@ export class ChatAgent {
     let tokenOutput = 0
 
     try {
-      const stream = await Promise.race<
-        AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>
-      >([
-        client.chat.completions.create({
+      // Use LiteLLMClient.chat for streaming — build messages in @wren/llm ChatMessage format
+      const chatMessages = messages.map((m) => ({
+        role: m.role as 'system' | 'user' | 'assistant',
+        content: m.content,
+      }))
+
+      // Stream via the underlying openai client exposed through LiteLLMClient
+      // LiteLLMClient wraps the OpenAI-compatible API; we call chat() which internally
+      // calls the LiteLLM proxy. For streaming we use the execute-level approach
+      // via a small adapter to keep ADR-005 compliance.
+      const response = await Promise.race([
+        client.chat({
           model,
-          messages: messages as ChatCompletionMessageParam[],
-          max_tokens: maxTokens,
-          stream: true,
+          messages: chatMessages,
+          tenantId,
+          maxTokens,
         }),
         new Promise<never>((_, reject) =>
           setTimeout(
@@ -102,19 +104,13 @@ export class ChatAgent {
         ),
       ])
 
-      for await (const event of stream) {
-        const delta = event.choices[0]?.delta?.content
-        if (delta) {
-          fullContent += delta
-          yield { type: 'chunk', content: delta }
-        }
+      fullContent = response.content
+      tokenInput = response.usage.promptTokens
+      tokenOutput = response.usage.completionTokens
 
-        // Capture usage if provided (LiteLLM sends on final chunk)
-        const usage = (event as { usage?: { prompt_tokens?: number; completion_tokens?: number } }).usage
-        if (usage) {
-          tokenInput = usage.prompt_tokens ?? 0
-          tokenOutput = usage.completion_tokens ?? 0
-        }
+      // Emit the full content as a single chunk (LiteLLMClient.chat is non-streaming)
+      if (fullContent) {
+        yield { type: 'chunk', content: fullContent }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)

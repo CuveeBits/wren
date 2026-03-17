@@ -7,9 +7,8 @@
  *
  * ADR-005: ALL LLM calls via /packages/llm → LiteLLM proxy.
  */
-import OpenAI from 'openai'
+import { createLiteLLMClient, MODELS } from '@wren/llm'
 import { db } from '@wren/db'
-import { MODELS } from '@wren/llm'
 
 export interface TitleGenerationJobData {
   conversationId: string
@@ -51,12 +50,8 @@ export async function generateConversationTitle(
     return
   }
 
-  // Call LiteLLM for title generation (via OpenAI-compatible API)
-  // This calls LiteLLM proxy, not OpenAI directly (ADR-005)
-  const client = new OpenAI({
-    baseURL: litellmBaseUrl,
-    apiKey: litellmApiKey,
-  })
+  // ADR-005: all LLM calls through @wren/llm — never instantiate OpenAI directly
+  const client = createLiteLLMClient({ baseUrl: litellmBaseUrl, apiKey: litellmApiKey })
 
   const prompt = TITLE_PROMPT.replace(
     '{message}',
@@ -65,10 +60,11 @@ export async function generateConversationTitle(
 
   try {
     const response = await Promise.race([
-      client.chat.completions.create({
+      client.chat({
         model: MODELS.FAST,
         messages: [{ role: 'user', content: prompt }],
-        max_tokens: 30,
+        tenantId,
+        maxTokens: 30,
         temperature: 0.3,
       }),
       new Promise<never>((_, reject) =>
@@ -76,7 +72,7 @@ export async function generateConversationTitle(
       ),
     ])
 
-    const rawTitle = response.choices[0]?.message?.content?.trim() ?? ''
+    const rawTitle = response.content.trim()
     // Sanitise: remove quotes, truncate to 80 chars
     const title = rawTitle
       .replace(/^["']|["']$/g, '')

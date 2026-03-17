@@ -117,6 +117,12 @@ export interface AttachDocumentInput {
   documentId: string
 }
 
+export interface UpdateConversationInput {
+  id: string
+  tenantId: string
+  title: string
+}
+
 export interface UpdateChatSettingsInput {
   tenantId: string
   systemPrompt?: string | null
@@ -350,6 +356,30 @@ export async function archiveConversation(
   const updated = await db.conversation.update({
     where: { id },
     data: { status: 'archived', updatedAt: new Date() },
+    select: {
+      id: true, tenantId: true, userId: true, channel: true,
+      title: true, status: true, lastMessageAt: true, createdAt: true, updatedAt: true,
+    },
+  })
+  return updated as ConversationSummary
+}
+
+/**
+ * Update a conversation's title (S-08 / ADV-4).
+ * Only the owning tenant may update their conversation.
+ */
+export async function updateConversation(
+  input: UpdateConversationInput
+): Promise<ConversationSummary | null> {
+  const existing = await db.conversation.findFirst({
+    where: { id: input.id, tenantId: input.tenantId },
+    select: { id: true },
+  })
+  if (!existing) return null
+
+  const updated = await db.conversation.update({
+    where: { id: input.id },
+    data: { title: input.title, updatedAt: new Date() },
     select: {
       id: true, tenantId: true, userId: true, channel: true,
       title: true, status: true, lastMessageAt: true, createdAt: true, updatedAt: true,

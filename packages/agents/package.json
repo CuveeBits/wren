@@ -14,8 +14,7 @@
   "dependencies": {
     "@wren/llm": "workspace:*",
     "@wren/types": "workspace:*",
-    "ioredis": "*",
-    "openai": "^6.32.0"
+    "ioredis": "*"
   },
   "devDependencies": {
     "@wren/config": "workspace:*",
