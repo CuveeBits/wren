@@ -1,11 +1,12 @@
 /**
  * @wren/channels — Channel Adapter Library.
  *
- * Exports the ChannelAdapter interface and all related types.
- * Concrete adapter implementations (Teams, Slack, etc.) ship in separate
- * sub-packages and are registered at runtime in /apps/api.
+ * Exports the ChannelAdapter interface, all related types, and the BaseAdapter
+ * abstract class. Concrete adapter implementations ship in sub-directories.
  *
  * See: docs/ADR.md ADR-009 for the full architecture.
+ *
+ * CRITICAL: This package must NOT import from /packages/agents or /apps/api.
  */
 export type {
   ChannelType,
@@ -18,3 +19,9 @@ export type {
   ActionButton,
   MessageHandler,
 } from './types'
+
+export { BaseAdapter } from './base-adapter'
+
+// WebChat adapter
+export { WebChatAdapter } from './webchat'
+export type { WebChatConfig } from './webchat'
