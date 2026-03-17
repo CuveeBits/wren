@@ -16,7 +16,7 @@ import type { ChatCompletionMessageParam } from 'openai/resources/chat/completio
 import type Redis from 'ioredis'
 import { ContextManager } from './context-manager'
 import { assembleMessages } from './prompt-assembler'
-import type { ConversationContext, AgentStreamChunk } from './types'
+import type { ConversationContext, AgentStreamChunk, KbChunkResult } from './types'
 import { MODELS } from '@wren/llm'
 
 export interface ChatAgentOptions {

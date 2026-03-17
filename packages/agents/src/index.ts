@@ -21,6 +21,7 @@ export type {
   AgentStreamChunk,
   AgentTurnResult,
   CitationRef,
+  KbChunkResult,
 } from './types'
 
 export const AGENTS_VERSION = '0.3.0'

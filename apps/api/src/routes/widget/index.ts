@@ -35,6 +35,7 @@ import {
   signWidgetSessionToken,
   verifyWidgetSessionToken,
 } from '../../services/chat'
+import { generateBootstrapScript, getBootstrapConfigCached } from './bootstrap'
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 
@@ -142,61 +143,24 @@ export async function widgetRoutes(fastify: FastifyInstance): Promise<void> {
     '/:tenantSlug/bootstrap.js',
     async (request: FastifyRequest, reply: FastifyReply) => {
       const { tenantSlug } = request.params as { tenantSlug: string }
+      const apiBaseUrl = process.env['API_BASE_URL'] ?? 'https://app.usewren.ai'
 
-      // Minimal loader script — Forge expands this in F-09
-      const script = `
-(function(w,d){
-  var slug=${JSON.stringify(tenantSlug)};
-  var apiBase=d.currentScript.src.replace('/widget/'+slug+'/bootstrap.js','');
-  var cfg=null;
-  var origin=w.location.origin;
-
-  function injectLauncher(config){
-    var btn=d.createElement('button');
-    btn.id='wren-launcher';
-    btn.textContent=config.launcherLabel||'Chat';
-    btn.style.cssText=[
-      'position:fixed','bottom:24px','right:24px','z-index:2147483647',
-      'background:'+config.brandColor,'color:#fff',
-      'border:none','border-radius:9999px','padding:12px 20px',
-      'font-size:15px','cursor:pointer','box-shadow:0 4px 12px rgba(0,0,0,.2)'
-    ].join(';');
-    d.body.appendChild(btn);
-    btn.addEventListener('click',function(){openChat(config);});
-  }
-
-  function openChat(config){
-    var existing=d.getElementById('wren-iframe-container');
-    if(existing){existing.style.display=existing.style.display==='none'?'flex':'none';return;}
-    var token=sessionStorage.getItem('wren_session_'+slug)||'';
-    var container=d.createElement('div');
-    container.id='wren-iframe-container';
-    container.style.cssText=[
-      'position:fixed','bottom:90px','right:24px','z-index:2147483646',
-      'width:380px','height:600px','border-radius:16px',
-      'box-shadow:0 8px 32px rgba(0,0,0,.25)','display:flex','overflow:hidden'
-    ].join(';');
-    var iframe=d.createElement('iframe');
-    iframe.src=apiBase+'/embed/chat/'+slug+'?session='+encodeURIComponent(token)+'&origin='+encodeURIComponent(origin);
-    iframe.style.cssText='width:100%;height:100%;border:none;';
-    iframe.allow='';
-    container.appendChild(iframe);
-    d.body.appendChild(container);
-    w.addEventListener('message',function(e){
-      if(e.data&&e.data.type==='wren:session'&&e.data.slug===slug){
-        sessionStorage.setItem('wren_session_'+slug,e.data.token);
+      // F-09: Full bootstrap.js — uses cached config (TTL 60s, no DB call on cache hit)
+      const config = await getBootstrapConfigCached(tenantSlug)
+      if (!config) {
+        return void reply
+          .type('application/javascript')
+          .header('Cache-Control', 'no-store')
+          .send('// Wren: tenant not found\n')
       }
-    });
-  }
 
-  fetch(apiBase+'/widget/'+slug+'/config',{headers:{Origin:origin}})
-    .then(function(r){return r.ok?r.json():null;})
-    .then(function(body){if(body&&body.data){cfg=body.data;injectLauncher(cfg);}})
-    .catch(function(){});
-})(window,document);
-`.trim()
+      const script = generateBootstrapScript(tenantSlug, config, apiBaseUrl)
 
-      void reply.type('application/javascript').send(script)
+      return void reply
+        .header('Content-Type', 'application/javascript; charset=utf-8')
+        .header('Cache-Control', 'public, max-age=60, s-maxage=60')
+        .header('X-Content-Type-Options', 'nosniff')
+        .send(script)
     }
   )
 

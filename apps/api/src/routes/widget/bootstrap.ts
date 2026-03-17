@@ -1,21 +1,22 @@
 /**
- * Widget bootstrap route — Sprint 3 (F-09).
+ * Widget bootstrap.js helpers — Sprint 3 (F-09).
  *
- * Serves bootstrap.js: the lightweight embed script (≤8KB minified) that tenants
- * paste into their <head> via a single <script> tag.
+ * Provides:
+ * - getBootstrapConfigCached: loads tenant config with in-memory TTL cache (no DB on cache hit)
+ * - generateBootstrapScript: generates the full ≤8KB embed script
+ *
+ * The route itself lives in widget/index.ts.
  *
  * Security rules:
- * - bootstrap.js itself does NO DB calls (config cached in-memory / Redis, TTL ≥ 60s)
- * - Origin validation happens at session creation and every message send
- * - bootstrap.js validates origin against tenant's allowedOrigins before injecting UI
+ * - No DB calls when config is cached (TTL ≥ 60s — satisfies "no DB call in bootstrap.js")
+ * - bootstrap.js origin validation happens client-side (defence in depth)
+ * - Real auth gate is the HMAC-signed session token on all write operations
  *
- * Route: GET /widget/:tenantSlug/bootstrap.js
- * Response: application/javascript (served directly — no Next.js)
+ * Target: generated script ≤8KB minified.
  */
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import { db } from '@wren/db'
 
-interface BootstrapCache {
+export interface BootstrapConfig {
   allowedOrigins: string[]
   brandColor: string
   accentColor: string
@@ -25,16 +26,20 @@ interface BootstrapCache {
 }
 
 // In-memory config cache per tenantSlug (TTL: 60s)
-const configCache = new Map<string, BootstrapCache>()
+const configCache = new Map<string, BootstrapConfig>()
 const CACHE_TTL_MS = 60_000
 
-async function getBootstrapConfig(tenantSlug: string): Promise<BootstrapCache | null> {
+/**
+ * Get tenant branding config for bootstrap.js, with in-memory cache.
+ * Returns null if tenant slug not found.
+ * No DB call on cache hit — satisfies the <100ms bootstrap.js response target.
+ */
+export async function getBootstrapConfigCached(tenantSlug: string): Promise<BootstrapConfig | null> {
   const cached = configCache.get(tenantSlug)
   if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
     return cached
   }
 
-  // Resolve tenant by slug
   const tenant = await db.tenant.findUnique({
     where: { slug: tenantSlug },
     select: { id: true },
@@ -52,7 +57,7 @@ async function getBootstrapConfig(tenantSlug: string): Promise<BootstrapCache | 
     },
   })
 
-  const config: BootstrapCache = {
+  const config: BootstrapConfig = {
     allowedOrigins: settings?.allowedOrigins ?? [],
     brandColor: settings?.brandColor ?? '#0F172A',
     accentColor: settings?.accentColor ?? '#22C55E',
@@ -66,17 +71,23 @@ async function getBootstrapConfig(tenantSlug: string): Promise<BootstrapCache | 
 }
 
 /**
- * Generate bootstrap.js for a tenant.
+ * Generate the full bootstrap.js embed script for a tenant.
  *
  * The script:
- * 1. Validates calling window.location.origin against allowedOrigins
- * 2. Injects launcher button into document.body
- * 3. On click: creates iframe overlay/drawer
- * 4. Passes session token and tenant slug to iframe
+ * 1. Validates window.location.origin against allowedOrigins (defence in depth)
+ * 2. Injects CSS styles for launcher + widget overlay
+ * 3. Injects a launcher button into document.body
+ * 4. On click: creates iframe overlay pointing to /embed/chat/:tenantSlug
+ * 5. Manages open/close state + keyboard (Escape) + window.postMessage close
+ * 6. Passes session key from sessionStorage to iframe via URL param
  *
- * Target: ≤8KB when minified (this template is ~4KB unminified)
+ * Output: ~4KB unminified, well under the ≤8KB target.
  */
-function generateBootstrapScript(tenantSlug: string, config: BootstrapCache, apiBaseUrl: string): string {
+export function generateBootstrapScript(
+  tenantSlug: string,
+  config: BootstrapConfig,
+  apiBaseUrl: string
+): string {
   const allowedOriginsJson = JSON.stringify(config.allowedOrigins)
   const brandColor = JSON.stringify(config.brandColor)
   const accentColor = JSON.stringify(config.accentColor)
@@ -86,173 +97,95 @@ function generateBootstrapScript(tenantSlug: string, config: BootstrapCache, api
   const apiBase = JSON.stringify(apiBaseUrl)
 
   return `
-(function(window, document) {
-  'use strict';
+(function(window,document){
+'use strict';
+var ALLOWED_ORIGINS=${allowedOriginsJson};
+var BRAND=${brandColor};
+var ACCENT=${accentColor};
+var TITLE=${widgetTitle};
+var LABEL=${launcherLabel};
+var SLUG=${slug};
+var BASE=${apiBase};
+var SK_KEY='wren_sk_'+SLUG;
+var OPEN=false;
 
-  var ALLOWED_ORIGINS = ${allowedOriginsJson};
-  var BRAND_COLOR = ${brandColor};
-  var ACCENT_COLOR = ${accentColor};
-  var WIDGET_TITLE = ${widgetTitle};
-  var LAUNCHER_LABEL = ${launcherLabel};
-  var TENANT_SLUG = ${slug};
-  var API_BASE = ${apiBase};
-  var SESSION_KEY = 'wren_session_' + TENANT_SLUG;
-  var OPEN_KEY = 'wren_open_' + TENANT_SLUG;
-
-  // 1. Origin validation
-  var origin = window.location.origin;
-  if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.indexOf(origin) === -1) {
-    console.warn('[Wren] Widget not allowed on origin: ' + origin);
-    return;
-  }
-
-  // 2. Get or create session key
-  function getSessionKey() {
-    var key = sessionStorage.getItem(SESSION_KEY);
-    if (!key) {
-      key = 'sk_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-      sessionStorage.setItem(SESSION_KEY, key);
-    }
-    return key;
-  }
-
-  // 3. Inject styles
-  var style = document.createElement('style');
-  style.textContent = [
-    '#wren-launcher{position:fixed;bottom:20px;right:20px;z-index:999998;',
-    'background:' + BRAND_COLOR + ';color:#fff;border:none;border-radius:50px;',
-    'padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;',
-    'box-shadow:0 4px 12px rgba(0,0,0,0.2);transition:transform 0.2s,opacity 0.2s;}',
-    '#wren-launcher:hover{transform:scale(1.05);}',
-    '#wren-overlay{display:none;position:fixed;bottom:0;right:20px;',
-    'width:380px;height:600px;z-index:999999;',
-    'border-radius:16px 16px 0 0;overflow:hidden;',
-    'box-shadow:0 8px 32px rgba(0,0,0,0.25);',
-    'transition:transform 0.3s ease,opacity 0.3s ease;',
-    'transform:translateY(20px);opacity:0;}',
-    '#wren-overlay.wren-open{display:block;transform:translateY(0);opacity:1;}',
-    '#wren-iframe{width:100%;height:100%;border:none;display:block;}',
-    '@media(max-width:480px){#wren-overlay{width:100%;right:0;height:100%;border-radius:0;}}'
-  ].join('');
-  document.head.appendChild(style);
-
-  // 4. Inject launcher button
-  var launcher = document.createElement('button');
-  launcher.id = 'wren-launcher';
-  launcher.setAttribute('aria-label', WIDGET_TITLE);
-  launcher.textContent = LAUNCHER_LABEL;
-  document.body.appendChild(launcher);
-
-  // 5. Inject overlay container (iframe injected lazily on first open)
-  var overlay = document.createElement('div');
-  overlay.id = 'wren-overlay';
-  overlay.setAttribute('role', 'dialog');
-  overlay.setAttribute('aria-label', WIDGET_TITLE);
-  overlay.setAttribute('aria-modal', 'true');
-  document.body.appendChild(overlay);
-
-  var iframe = null;
-  var isOpen = false;
-
-  function openWidget() {
-    if (!iframe) {
-      var sk = getSessionKey();
-      var src = API_BASE + '/embed/chat/' + TENANT_SLUG + '?sk=' + encodeURIComponent(sk);
-      iframe = document.createElement('iframe');
-      iframe.id = 'wren-iframe';
-      iframe.src = src;
-      iframe.title = WIDGET_TITLE;
-      iframe.setAttribute('allow', 'clipboard-write');
-      overlay.appendChild(iframe);
-    }
-    overlay.classList.add('wren-open');
-    launcher.setAttribute('aria-expanded', 'true');
-    isOpen = true;
-    // Trap focus inside overlay
-    iframe.focus();
-  }
-
-  function closeWidget() {
-    overlay.classList.remove('wren-open');
-    launcher.setAttribute('aria-expanded', 'false');
-    isOpen = false;
-    launcher.focus();
-  }
-
-  launcher.addEventListener('click', function() {
-    if (isOpen) { closeWidget(); } else { openWidget(); }
-  });
-
-  // Close on Escape key
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && isOpen) { closeWidget(); }
-  });
-
-  // Handle close message from iframe
-  window.addEventListener('message', function(e) {
-    if (ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.indexOf(e.origin) === -1) return;
-    if (e.data && e.data.type === 'wren:close') { closeWidget(); }
-  });
-
-})(window, document);
-`.trim()
+// 1. Origin validation (defence in depth — real auth is HMAC session token)
+var origin=window.location.origin;
+if(ALLOWED_ORIGINS.length>0&&ALLOWED_ORIGINS.indexOf(origin)===-1){
+  console.warn('[Wren] Widget not allowed on origin: '+origin);return;
 }
 
-export async function registerWidgetBootstrapRoute(app: FastifyInstance): Promise<void> {
-  const apiBaseUrl = process.env['API_BASE_URL'] ?? 'https://app.usewren.ai'
+// 2. Session key (stored in sessionStorage, never sent as cookie)
+function sk(){
+  var k=sessionStorage.getItem(SK_KEY);
+  if(!k){k='sk_'+Math.random().toString(36).slice(2)+Date.now().toString(36);sessionStorage.setItem(SK_KEY,k);}
+  return k;
+}
 
-  app.get<{ Params: { tenantSlug: string } }>(
-    '/widget/:tenantSlug/bootstrap.js',
-    {
-      schema: {
-        params: {
-          type: 'object',
-          properties: { tenantSlug: { type: 'string' } },
-          required: ['tenantSlug'],
-        },
-      },
-    },
-    async (request: FastifyRequest<{ Params: { tenantSlug: string } }>, reply: FastifyReply) => {
-      const { tenantSlug } = request.params
-      const config = await getBootstrapConfig(tenantSlug)
+// 3. Styles
+var s=document.createElement('style');
+s.textContent=[
+'#wren-btn{position:fixed;bottom:20px;right:20px;z-index:999998;background:'+BRAND+';color:#fff;',
+'border:none;border-radius:50px;padding:12px 20px;font-size:14px;font-weight:600;cursor:pointer;',
+'box-shadow:0 4px 12px rgba(0,0,0,.2);transition:transform .2s;}',
+'#wren-btn:hover{transform:scale(1.05);}',
+'#wren-overlay{display:none;position:fixed;bottom:0;right:20px;width:380px;height:600px;',
+'z-index:999999;border-radius:16px 16px 0 0;overflow:hidden;',
+'box-shadow:0 8px 32px rgba(0,0,0,.25);transition:opacity .3s,transform .3s;',
+'opacity:0;transform:translateY(20px);}',
+'#wren-overlay.wren-open{display:block;opacity:1;transform:translateY(0);}',
+'#wren-iframe{width:100%;height:100%;border:none;display:block;}',
+'@media(max-width:480px){#wren-overlay{width:100%;right:0;height:100%;border-radius:0;}}'
+].join('');
+document.head.appendChild(s);
 
-      if (!config) {
-        return reply.status(404).send('// Wren: tenant not found\n')
-      }
+// 4. Launcher button
+var btn=document.createElement('button');
+btn.id='wren-btn';
+btn.setAttribute('aria-label',TITLE);
+btn.setAttribute('aria-expanded','false');
+btn.textContent=LABEL;
+document.body.appendChild(btn);
 
-      const script = generateBootstrapScript(tenantSlug, config, apiBaseUrl)
+// 5. Overlay container
+var overlay=document.createElement('div');
+overlay.id='wren-overlay';
+overlay.setAttribute('role','dialog');
+overlay.setAttribute('aria-label',TITLE);
+overlay.setAttribute('aria-modal','true');
+document.body.appendChild(overlay);
 
-      return reply
-        .header('Content-Type', 'application/javascript; charset=utf-8')
-        .header('Cache-Control', 'public, max-age=60, s-maxage=60')
-        .header('X-Content-Type-Options', 'nosniff')
-        .send(script)
-    }
-  )
+var iframe=null;
 
-  // Widget branding config endpoint (public, after origin check)
-  app.get<{ Params: { tenantSlug: string } }>(
-    '/widget/:tenantSlug/config',
-    async (request: FastifyRequest<{ Params: { tenantSlug: string } }>, reply: FastifyReply) => {
-      const { tenantSlug } = request.params
-      const origin = request.headers.origin
+function open(){
+  if(!iframe){
+    iframe=document.createElement('iframe');
+    iframe.id='wren-iframe';
+    iframe.src=BASE+'/embed/chat/'+SLUG+'?sk='+encodeURIComponent(sk());
+    iframe.title=TITLE;
+    iframe.setAttribute('allow','clipboard-write');
+    overlay.appendChild(iframe);
+  }
+  overlay.classList.add('wren-open');
+  btn.setAttribute('aria-expanded','true');
+  OPEN=true;
+  setTimeout(function(){iframe.focus();},50);
+}
 
-      const config = await getBootstrapConfig(tenantSlug)
-      if (!config) {
-        return reply.status(404).send({ error: 'Tenant not found' })
-      }
+function close(){
+  overlay.classList.remove('wren-open');
+  btn.setAttribute('aria-expanded','false');
+  OPEN=false;
+  btn.focus();
+}
 
-      // Origin check for non-bootstrap endpoints
-      if (config.allowedOrigins.length > 0 && origin && !config.allowedOrigins.includes(origin)) {
-        return reply.status(403).send({ error: 'Origin not allowed' })
-      }
-
-      return reply.send({
-        widgetTitle: config.widgetTitle,
-        launcherLabel: config.launcherLabel,
-        brandColor: config.brandColor,
-        accentColor: config.accentColor,
-      })
-    }
-  )
+btn.addEventListener('click',function(){if(OPEN){close();}else{open();}});
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&OPEN){close();}});
+window.addEventListener('message',function(e){
+  if(ALLOWED_ORIGINS.length>0&&ALLOWED_ORIGINS.indexOf(e.origin)===-1)return;
+  if(e.data&&e.data.type==='wren:close')close();
+  if(e.data&&e.data.type==='wren:open')open();
+});
+})(window,document);
+`.trim()
 }

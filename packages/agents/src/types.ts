@@ -2,23 +2,9 @@
  * Agent runtime types — Sprint 3.
  *
  * ConversationContext is the primary input to ChatAgent.
- * All fields required for KB retrieval, prompt assembly, and memory.
- *
- * Note: KbChunkResult is defined here (mirroring the retrieval service shape)
- * to avoid cross-app imports — /packages/agents must not import from /apps/api.
+ * KbChunkResult is re-exported from @wren/types to avoid cross-package duplication.
  */
-
-export interface KbChunkResult {
-  id:               string
-  documentId:       string
-  content:          string
-  tokenCount:       number
-  chunkIndex:       number
-  pageNumber:       number | null
-  similarity:       number
-  documentTitle:    string
-  documentFileName: string
-}
+export type { KbChunkResult } from '@wren/types'
 
 export interface CitationRef {
   documentId: string
@@ -39,7 +25,7 @@ export interface ConversationContext {
   /** Frozen system prompt captured at conversation creation (F-05) */
   systemPromptSnapshot?: string
   /** Pre-retrieved KB chunks (F-04) — retrieved by chat service before calling agent */
-  kbChunks?: KbChunkResult[]
+  kbChunks?: import('@wren/types').KbChunkResult[]
   /** Citation metadata corresponding to kbChunks */
   citations?: CitationRef[]
   /** LiteLLM gateway config — passed through from API config */
