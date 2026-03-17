@@ -46,6 +46,7 @@ const NAV_ITEMS = [
   { label: 'Dashboard', icon: <LayoutDashboard />, hrefSuffix: '', sprint: 0 },
   { label: 'Prompts', icon: <Sparkles />, hrefSuffix: '/prompts', sprint: 1 },
   { label: 'Knowledge Base', icon: <BookOpen />, hrefSuffix: '/kb', sprint: 2 },
+  { label: 'Chat', icon: <MessageSquare />, hrefSuffix: '/chat', sprint: 3 },
   { label: 'Agents', icon: <Bot />, hrefSuffix: '#', sprint: 2 },
   { label: 'Workflows', icon: <Workflow />, hrefSuffix: '#', sprint: 4 },
   { label: 'Channels', icon: <MessageSquare />, hrefSuffix: '#', sprint: 4 },
