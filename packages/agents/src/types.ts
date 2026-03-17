@@ -3,9 +3,22 @@
  *
  * ConversationContext is the primary input to ChatAgent.
  * All fields required for KB retrieval, prompt assembly, and memory.
+ *
+ * Note: KbChunkResult is defined here (mirroring the retrieval service shape)
+ * to avoid cross-app imports — /packages/agents must not import from /apps/api.
  */
 
-import type { KbChunkResult } from '@wren/types'
+export interface KbChunkResult {
+  id:               string
+  documentId:       string
+  content:          string
+  tokenCount:       number
+  chunkIndex:       number
+  pageNumber:       number | null
+  similarity:       number
+  documentTitle:    string
+  documentFileName: string
+}
 
 export interface CitationRef {
   documentId: string

@@ -12,6 +12,7 @@ import { Worker } from 'bullmq'
 import { z } from 'zod'
 import { QUEUE_NAMES, createQueues } from './queues/index'
 import { ingestDocument, type KbIngestJobData } from './kb/ingest'
+import { generateConversationTitle, type TitleGenerationJobData } from './chat/title-generator'
 
 // ── Config (Rule 7: env vars validated once) ──────────────────────────────────
 const WorkerConfigSchema = z.object({
@@ -95,7 +96,31 @@ const notificationWorker = new Worker(
 const billingWorker = new Worker(
   QUEUE_NAMES.BILLING_METER,
   async (job) => {
-    console.log(`[${QUEUE_NAMES.BILLING_METER}] Received job ${job.id} — stub processor`)
+    const { tenantId, conversationId, messageId, tokenInput, tokenOutput, timestamp } = job.data as {
+      tenantId: string
+      conversationId: string
+      messageId: string
+      model: string
+      tokenInput: number
+      tokenOutput: number
+      timestamp: string
+    }
+    console.log(
+      `[${QUEUE_NAMES.BILLING_METER}] Metering: tenant=${tenantId} conv=${conversationId} ` +
+      `msg=${messageId} in=${tokenInput} out=${tokenOutput} ts=${timestamp}`
+    )
+    // TODO(sprint-10): persist to billing_usage table, update tenant usage quota
+  },
+  workerOptions
+)
+
+// conversation:title — async title generation from first user message (Sprint 3 F-06)
+const titleWorker = new Worker(
+  QUEUE_NAMES.CONVERSATION_TITLE,
+  async (job) => {
+    console.log(`[${QUEUE_NAMES.CONVERSATION_TITLE}] Generating title for job ${job.id}`)
+    const data = job.data as TitleGenerationJobData
+    await generateConversationTitle(data)
   },
   workerOptions
 )
@@ -107,6 +132,7 @@ for (const worker of [
   agentRunWorker,
   notificationWorker,
   billingWorker,
+  titleWorker,
 ]) {
   worker.on('failed', (job, err) => {
     console.error(`Worker job failed: ${job?.id}`, err)
@@ -122,6 +148,7 @@ async function shutdown(signal: string): Promise<void> {
     agentRunWorker.close(),
     notificationWorker.close(),
     billingWorker.close(),
+    titleWorker.close(),
   ])
   await connection.quit()
   process.exit(0)
