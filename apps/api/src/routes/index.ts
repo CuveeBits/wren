@@ -8,6 +8,8 @@ import { healthRoutes } from './health'
 import { kbRoutes } from './kb'
 import { promptRoutes } from './prompts'
 import { kbContextRoutes } from './kb/context'
+import { chatRoutes } from './chat'
+import { widgetRoutes } from './widget'
 
 interface RouteOptions {
   redis: Redis
@@ -26,7 +28,13 @@ export async function registerRoutes(
       await v1.register(promptRoutes, { prefix: '/prompts' })
       await v1.register(kbRoutes, { prefix: '/kb', redis: options.redis })
       await v1.register(kbContextRoutes, { prefix: '/kb/context' })
+      // Sprint 3: Chat interface routes (S-01 through S-09)
+      await v1.register(chatRoutes, { prefix: '/chat' })
     },
     { prefix: '/api/v1' }
   )
+
+  // PUBLIC widget routes — origin-gated, HMAC session token auth (S-09)
+  // Registered outside /api/v1 prefix — served at /widget/:tenantSlug/...
+  await fastify.register(widgetRoutes, { prefix: '/widget' })
 }
