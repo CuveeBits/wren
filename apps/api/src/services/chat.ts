@@ -26,8 +26,8 @@ import { Queue } from 'bullmq'
 import { ChatAgent } from '@wren/agents'
 import type { ConversationContext } from '@wren/agents'
 import { retrieveChunks } from './kb/retrieval'
-import { signToken, verifyToken } from '@wren/channels/webchat'
-import type { SessionTokenPayload } from '@wren/channels/webchat'
+import { signToken, verifyToken } from '@wren/channels'
+import type { SessionTokenPayload } from '@wren/channels'
 
 // ── Re-usable types (preserved from stub contract) ───────────────────────────
 
@@ -82,6 +82,9 @@ export interface TenantChatSettingsRecord {
   accentColor: string | null
   widgetTitle: string | null
   allowedOrigins: string[]
+  // TODO: Future fields (model, kbDefaults) for forward compatibility
+  model?: string | null
+  kbDefaults?: unknown
   createdAt: Date
   updatedAt: Date
 }

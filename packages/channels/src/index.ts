@@ -25,3 +25,5 @@ export { BaseAdapter } from './base-adapter'
 // WebChat adapter
 export { WebChatAdapter } from './webchat'
 export type { WebChatConfig } from './webchat'
+export { signToken, verifyToken } from './webchat/session-token-service'
+export type { SessionTokenPayload, VerifyResult } from './webchat/session-token-service'

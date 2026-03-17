@@ -35,6 +35,12 @@ importers:
       '@paralleldrive/cuid2':
         specifier: ^2.2.2
         version: 2.3.1
+      '@wren/agents':
+        specifier: workspace:*
+        version: link:../../packages/agents
+      '@wren/channels':
+        specifier: workspace:*
+        version: link:../../packages/channels
       '@wren/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -151,6 +157,9 @@ importers:
       '@wren/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@wren/llm':
+        specifier: workspace:*
+        version: link:../../packages/llm
       '@wren/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -163,6 +172,9 @@ importers:
       mammoth:
         specifier: ^1.7.0
         version: 1.12.0
+      openai:
+        specifier: '*'
+        version: 4.104.0(zod@3.25.76)
       pdf-parse:
         specifier: ^1.1.1
         version: 1.1.4
@@ -191,6 +203,12 @@ importers:
       '@wren/types':
         specifier: workspace:*
         version: link:../types
+      ioredis:
+        specifier: 5.9.3
+        version: 5.9.3
+      openai:
+        specifier: ^6.32.0
+        version: 6.32.0(zod@3.25.76)
     devDependencies:
       '@wren/config':
         specifier: workspace:*
@@ -2379,6 +2397,18 @@ packages:
     peerDependencies:
       ws: ^8.18.0
       zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
+  openai@6.32.0:
+    resolution: {integrity: sha512-j3k+BjydAf8yQlcOI7WUQMQTbbF5GEIMAE2iZYCOzwwB3S2pCheaWYp+XZRNAch4jWVc52PMDGRRjutao3lLCg==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
     peerDependenciesMeta:
       ws:
         optional: true
@@ -5174,6 +5204,10 @@ snapshots:
       zod: 3.25.76
     transitivePeerDependencies:
       - encoding
+
+  openai@6.32.0(zod@3.25.76):
+    optionalDependencies:
+      zod: 3.25.76
 
   option@0.2.4: {}
 
