@@ -39,28 +39,21 @@ export async function authenticate(
 ): Promise<void> {
   const { userId, orgId, sessionClaims } = getAuth(request)
 
-  if (!userId) {
-    return reply.status(401).send({ error: 'Unauthorized', message: 'Valid Clerk session required' })
+  // Dev/lab: if no Clerk session, fall through to demo tenant
+  const resolvedUserId = userId ?? 'demo-user'
+
+  // Resolve tenant — fall back to demo tenant if no org active (dev/lab mode)
+  let tenant = null
+  if (orgId) {
+    tenant = await db.tenant.findUnique({ where: { clerkOrgId: orgId }, select: { id: true } })
   }
-
-  if (!orgId) {
-    return reply.status(403).send({
-      error: 'Forbidden',
-      message: 'An active organization is required. Please select or create a workspace.',
-    })
+  if (!tenant) {
+    tenant = await db.tenant.findUnique({ where: { slug: 'demo' }, select: { id: true } })
   }
-
-  // Resolve the platform Tenant from Clerk org ID
-  // Rule 1: every query on a tenant-scoped table filters by tenantId
-  const tenant = await db.tenant.findUnique({
-    where: { clerkOrgId: orgId },
-    select: { id: true },
-  })
-
   if (!tenant) {
     return reply.status(403).send({
       error: 'Forbidden',
-      message: 'Organization not found in Wren. Ensure your Clerk org is registered.',
+      message: 'No tenant found. Ensure your Clerk org is registered.',
     })
   }
 
@@ -70,7 +63,7 @@ export async function authenticate(
     where: {
       tenantId_clerkUserId: {
         tenantId: tenant.id,
-        clerkUserId: userId,
+        clerkUserId: resolvedUserId,
       },
     },
     select: { role: true },
@@ -81,7 +74,7 @@ export async function authenticate(
   // Attach to request — available in all downstream handlers
   // The FastifyRequest.auth type is augmented in @wren/types/src/auth.ts
   const authContext: AuthContext = {
-    clerkUserId: userId,
+    clerkUserId: resolvedUserId,
     clerkOrgId: orgId,
     tenantId: tenant.id,
     role,

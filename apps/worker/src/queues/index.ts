@@ -12,13 +12,13 @@ import type Redis from 'ioredis'
 // ─── Queue names ──────────────────────────────────────────────────────────────
 
 export const QUEUE_NAMES = {
-  KB_INDEX: 'kb:index',
-  KB_EMBED: 'kb:embed',
-  AGENT_RUN: 'agent:run',
-  NOTIFICATION_SEND: 'notification:send',
-  WORKFLOW_TRIGGER: 'workflow:trigger',
-  REPORT_GENERATE: 'report:generate',
-  BILLING_METER: 'billing:meter',
+  KB_INDEX: 'kb-index',
+  KB_EMBED: 'kb-embed',
+  AGENT_RUN: 'agent-run',
+  NOTIFICATION_SEND: 'notification-send',
+  WORKFLOW_TRIGGER: 'workflow-trigger',
+  REPORT_GENERATE: 'report-generate',
+  BILLING_METER: 'billing-meter',
 } as const
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES]

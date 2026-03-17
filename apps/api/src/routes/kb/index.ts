@@ -11,7 +11,7 @@ import { z } from 'zod'
 import { authenticate } from '../../plugins/auth'
 import { searchChunksKeyword, searchChunksSemantic } from '../../services/kb/retrieval'
 
-const KB_INDEX_QUEUE = 'kb:index'
+const KB_INDEX_QUEUE = 'kb-index'
 const KB_NAME = 'Knowledge Base'
 const MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 const MAX_MULTIPART_BYTES = MAX_UPLOAD_BYTES + 256 * 1024
@@ -24,18 +24,18 @@ const UPLOAD_ROOT = join(process.cwd(), 'apps/api/uploads/kb')
 
 const CollectionCreateSchema = z.object({
   name: z.string().trim().min(1).max(120),
-  parentId: z.string().cuid().nullable().optional(),
+  parentId: z.string().min(1).nullable().optional(),
 })
 
 const CollectionUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
-  parentId: z.string().cuid().nullable().optional(),
+  parentId: z.string().min(1).nullable().optional(),
 }).refine((value) => value.name !== undefined || value.parentId !== undefined, {
   message: 'At least one field must be provided',
 })
 
 const DocumentListQuerySchema = z.object({
-  collectionId: z.string().cuid().optional(),
+  collectionId: z.string().min(1).optional(),
   tag: z.string().trim().min(1).optional(),
   status: z.enum(['processing', 'ready', 'error']).optional(),
   q: z.string().trim().min(1).optional(),
@@ -43,7 +43,7 @@ const DocumentListQuerySchema = z.object({
 
 const DocumentUpdateSchema = z.object({
   title: z.string().trim().min(1).max(255).optional(),
-  collectionId: z.string().cuid().nullable().optional(),
+  collectionId: z.string().min(1).nullable().optional(),
   tags: z.array(z.string().trim().min(1).max(64)).max(20).optional(),
 }).refine((value) => value.title !== undefined || value.collectionId !== undefined || value.tags !== undefined, {
   message: 'At least one field must be provided',
@@ -293,6 +293,11 @@ export async function kbRoutes(
         include: {
           collection: { select: { id: true, name: true, parentId: true } },
           _count: { select: { chunks: true } },
+          chunks: {
+            select: { id: true, content: true, chunkIndex: true, pageNumber: true, tokenCount: true },
+            orderBy: { chunkIndex: 'asc' },
+            take: 5,
+          },
         },
       })
       if (!document) return reply.status(404).send({ error: 'Document not found' })
@@ -593,6 +598,13 @@ async function parseMultipartUpload(request: FastifyRequest): Promise<ParsedMult
 }
 
 async function readRequestBody(request: FastifyRequest, maxBytes: number): Promise<Buffer> {
+  // When Fastify has already parsed the body (addContentTypeParser with parseAs=buffer),
+  // use request.body directly instead of re-reading the consumed stream.
+  if (Buffer.isBuffer(request.body)) {
+    if (request.body.length > maxBytes) throw new Error('File too large. Maximum size is 20 MB')
+    return request.body
+  }
+
   const chunks: Buffer[] = []
   let total = 0
 

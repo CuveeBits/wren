@@ -3,10 +3,10 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { ArrowLeft, Plus, Sparkles, X } from 'lucide-react'
+import { ArrowLeft, Plus, Sparkles, X, Trash2 } from 'lucide-react'
 import { Button, Input, Skeleton } from '@wren/ui'
 import { KbTagBadge } from '@/components/kb/KbTagBadge'
-import { getKbDocument, listKbDocuments, updateKbDocumentTags, type KbDocument } from '@/components/kb/api'
+import { getKbDocument, listKbDocuments, updateKbDocumentTags, deleteKbDocument, type KbDocument } from '@/components/kb/api'
 
 function formatBytes(sizeBytes: number) {
   if (sizeBytes >= 1024 * 1024) return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`
@@ -17,6 +17,18 @@ function formatBytes(sizeBytes: number) {
 export default function KbDocumentPage() {
   const { tenantSlug, id } = useParams<{ tenantSlug: string; id: string }>()
   const router = useRouter()
+  const [isDeleting, setIsDeleting] = React.useState(false)
+
+  async function handleDelete() {
+    if (!confirm('Delete this document? This cannot be undone.')) return
+    setIsDeleting(true)
+    try {
+      await deleteKbDocument(id)
+    } catch {
+      // ignore errors — redirect anyway
+    }
+    router.push('/' + tenantSlug + '/kb')
+  }
 
   const [document, setDocument] = React.useState<KbDocument | null>(null)
   const [similarDocuments, setSimilarDocuments] = React.useState<KbDocument[]>([])
@@ -93,6 +105,17 @@ export default function KbDocumentPage() {
         Back to Knowledge Base
       </Link>
 
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={handleDelete}
+        disabled={isDeleting}
+        className="w-fit"
+      >
+        <Trash2 className="h-4 w-4 mr-1.5" />
+        {isDeleting ? 'Deleting...' : 'Delete document'}
+      </Button>
+
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {document.collectionName ?? 'Unassigned'}
@@ -143,7 +166,7 @@ export default function KbDocumentPage() {
               </div>
 
               <div className="space-y-3">
-                {document.chunks.slice(0, 3).map((chunk) => (
+                {(document.chunks ?? []).slice(0, 3).map((chunk) => (
                   <div key={chunk.id} className="rounded-xl border border-border p-4">
                     <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                       Chunk {chunk.chunkIndex + 1}
@@ -152,7 +175,7 @@ export default function KbDocumentPage() {
                     <p className="text-sm text-muted-foreground">{chunk.content}</p>
                   </div>
                 ))}
-                {document.chunks.length === 0 && (
+                {(document.chunks ?? []).length === 0 && (
                   <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
                     Chunk previews will appear after processing completes.
                   </div>

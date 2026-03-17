@@ -137,3 +137,7 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+.turbo/
+apps/api/uploads/
+apps/api/uploads/
+apps/api/apps/
