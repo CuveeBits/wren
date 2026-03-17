@@ -21,9 +21,9 @@ import type { Conversation, Message, ConversationDocument } from '@wren/db'
 import { createId } from '@paralleldrive/cuid2'
 import { Queue } from 'bullmq'
 import Redis from 'ioredis'
-import { retrieveChunks, type KbChunkResult } from '../kb/retrieval'
+import { retrieveChunks } from '../kb/retrieval'
 import { ChatAgent } from '@wren/agents'
-import type { ConversationContext, AgentTurnResult } from '@wren/agents'
+import type { ConversationContext, KbChunkResult } from '@wren/agents'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

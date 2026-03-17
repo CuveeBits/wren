@@ -10,7 +10,7 @@
  * No LLM calls — pure prompt construction.
  */
 
-import type { KbChunkResult } from '../../apps/api/src/services/kb/retrieval'
+import type { KbChunkResult } from './types'
 import type { MemoryMessage } from './context-manager'
 
 export interface ChatMessage {
