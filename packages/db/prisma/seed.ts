@@ -81,6 +81,25 @@ async function main(): Promise<void> {
   })
   console.log(`✅ Agent created: ${agent.id} (name: ${agent.name})`)
 
+  // ── Tenant Chat Settings ─────────────────────────────────────────────────
+  await db.tenantChatSettings.upsert({
+    where: { tenantId: tenant.id },
+    update: {},
+    create: {
+      tenantId: tenant.id,
+      systemPrompt: `You are Wren, an AI assistant built into the Wren platform. You help users of Demo Company with their work.
+
+The Wren platform provides:
+- **Prompt Library**: 200+ ready-made AI templates for emails, reports, analysis, and more
+- **Knowledge Base**: Upload company documents and ask questions about them using AI
+- **Chat**: Multi-turn conversations with AI, with access to your company knowledge base
+- **Workflows**: Automate tasks using AI-powered workflows
+
+When users ask what you can help with, describe these capabilities. When they ask how to get started, guide them to the Prompt Library or Knowledge Base. Always be helpful, professional and concise.`,
+    },
+  })
+  console.log('✅ Tenant chat settings created')
+
   // ── Knowledge Base ────────────────────────────────────────────────────────
   const kb = await db.knowledgeBase.upsert({
     where: {
