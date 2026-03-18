@@ -11,20 +11,27 @@ model_list:
 
   - model_name: wren-fast
     litellm_params:
-      model: ollama/qwen2.5:7b
+      model: ollama/qwen2.5:1.5b
       api_base: http://172.17.0.1:11434
 
-  # Sprint 2: auto-tagger model alias — maps to local qwen2.5:7b in dev.
-  # Production: configure ANTHROPIC_API_KEY and swap to native claude-haiku-4-5-20251001.
   - model_name: claude-haiku-4-5-20251001
     litellm_params:
       model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
-  # Sprint 2: nomic-embed-text for KB embedding via LiteLLM
   - model_name: nomic-embed-text
     litellm_params:
       model: ollama/nomic-embed-text
+      api_base: http://172.17.0.1:11434
+
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://172.17.0.1:11434
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
 general_settings:

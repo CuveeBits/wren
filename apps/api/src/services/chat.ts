@@ -520,6 +520,14 @@ export async function sendMessageStream(
   let tokenOutput = 0
   let streamError: string | null = null
 
+  // Keepalive ping every 2s while model is thinking — prevents browser SSE timeout
+  const keepalive = setInterval(() => {
+    try {
+      if (!res.writableEnded && !res.destroyed) res.write('data: {"type":"ping"}\n\n')
+      else clearInterval(keepalive)
+    } catch { clearInterval(keepalive) }
+  }, 2000)
+
   // Stream via ChatAgent
   try {
     const redis = getRedis()
@@ -539,6 +547,8 @@ export async function sendMessageStream(
     }
   } catch (err) {
     streamError = err instanceof Error ? err.message : String(err)
+  } finally {
+    clearInterval(keepalive)
   }
 
   if (streamError) {

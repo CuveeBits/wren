@@ -115,6 +115,28 @@ export class LiteLLMClient {
     }
   }
 
+
+  /**
+   * Stream a chat completion through LiteLLM.
+   * Yields content chunks as they arrive from the model.
+   */
+  async *stream(request: ChatCompletionRequest): AsyncGenerator<string> {
+    const messages = request.messages as unknown as ChatCompletionMessageParam[]
+
+    const stream = await this.openai.chat.completions.create({
+      model: request.model,
+      messages,
+      temperature: request.temperature ?? 0.7,
+      max_tokens: request.maxTokens,
+      stream: true,
+    })
+
+    for await (const chunk of stream) {
+      const delta = chunk.choices[0]?.delta?.content
+      if (delta) yield delta
+    }
+  }
+
   /**
    * Generate embeddings through LiteLLM.
    * Sprint 0: stub. Full impl in Sprint 3 (KB indexing).

@@ -68,7 +68,7 @@ export async function generateConversationTitle(
         temperature: 0.3,
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Title generation timed out after 15s')), 15_000)
+        setTimeout(() => reject(new Error('Title generation timed out after 60s')), 60_000)
       ),
     ])
 

@@ -110,9 +110,10 @@ export default function ConversationPage() {
   React.useEffect(() => {
     const initial = searchParams.get('initialMessage')
     if (initial && !isLoadingMessages && messages.length === 0) {
-      // Remove query param then send
+      // Remove query param, then wait for component to fully mount before sending
       router.replace(`/${tenantSlug}/chat/${id}`)
-      handleSend(initial)
+      const timer = setTimeout(() => { handleSend(initial) }, 500)
+      return () => clearTimeout(timer)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingMessages])
@@ -166,6 +167,7 @@ export default function ConversationPage() {
     setIsStreaming(true)
     setIsTyping(true)
 
+    let doneReceived = false
     const abort = new AbortController()
     abortRef.current = abort
 
@@ -216,9 +218,11 @@ export default function ConversationPage() {
           return updated
         })
         // Reload messages to get real IDs from server
+        doneReceived = true
         listMessages(id).then((msgs) => setMessages(msgs)).catch(() => {})
       },
       onError: (msg) => {
+        if (doneReceived) return // stream completed successfully, ignore trailing error
         setIsStreaming(false)
         setIsTyping(false)
         setError(msg)

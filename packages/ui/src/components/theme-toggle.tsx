@@ -18,7 +18,9 @@ interface ThemeToggleProps extends React.ButtonHTMLAttributes<HTMLButtonElement>
  * White-label: inherits CSS variable --primary so it matches tenant branding.
  */
 export function ThemeToggle({ theme, onToggle, className, ...props }: ThemeToggleProps) {
-  const isDark = theme === 'dark'
+  const [mounted, setMounted] = React.useState(false)
+  React.useEffect(() => setMounted(true), [])
+  const isDark = mounted && theme === 'dark'
 
   return (
     <button
@@ -29,6 +31,7 @@ export function ThemeToggle({ theme, onToggle, className, ...props }: ThemeToggl
         'inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         className
       )}
+      suppressHydrationWarning
       {...props}
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

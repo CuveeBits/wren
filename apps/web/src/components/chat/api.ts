@@ -225,9 +225,11 @@ export async function sendMessage(
     }
     const decoder = new TextDecoder()
     let buffer = ''
+    console.log('[SSE] Stream started, reading...')
     while (true) {
       const { done, value } = await reader.read()
-      if (done) break
+      console.log('[SSE] read:', done, value?.length)
+      if (done) { console.log('[SSE] Stream done'); break }
       buffer += decoder.decode(value, { stream: true })
       const lines = buffer.split('\n')
       buffer = lines.pop() ?? ''
@@ -237,7 +239,8 @@ export async function sendMessage(
         if (!raw) continue
         try {
           const event = JSON.parse(raw) as SSEChunk
-          if (event.type === 'chunk' && event.content) {
+          if (event.type === 'ping') {// keepalive, ignore
+          } else if (event.type === 'chunk' && event.content) {
             onChunk(event.content)
           } else if (event.type === 'citations' && event.citations) {
             onCitations(event.citations)

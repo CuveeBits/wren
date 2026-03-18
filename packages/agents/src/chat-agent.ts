@@ -85,33 +85,29 @@ export class ChatAgent {
         content: m.content,
       }))
 
-      // Stream via the underlying openai client exposed through LiteLLMClient
-      // LiteLLMClient wraps the OpenAI-compatible API; we call chat() which internally
-      // calls the LiteLLM proxy. For streaming we use the execute-level approach
-      // via a small adapter to keep ADR-005 compliance.
-      const response = await Promise.race([
-        client.chat({
+      // Stream tokens as they arrive from LiteLLM — true streaming via @wren/llm client.stream()
+      // ADR-005 compliant: all LLM calls go through packages/llm → LiteLLM proxy.
+      const abortTimeout = setTimeout(() => {
+        throw new Error('LiteLLM stream timed out after 120s')
+      }, 120_000)
+
+      try {
+        for await (const chunk of client.stream({
           model,
           messages: chatMessages,
           tenantId,
           maxTokens,
-        }),
-        new Promise<never>((_, reject) =>
-          setTimeout(
-            () => reject(new Error('LiteLLM request timed out after 60s')),
-            60_000
-          )
-        ),
-      ])
-
-      fullContent = response.content
-      tokenInput = response.usage.promptTokens
-      tokenOutput = response.usage.completionTokens
-
-      // Emit the full content as a single chunk (LiteLLMClient.chat is non-streaming)
-      if (fullContent) {
-        yield { type: 'chunk', content: fullContent }
+        })) {
+          fullContent += chunk
+          tokenOutput++
+          yield { type: 'chunk', content: chunk }
+        }
+      } finally {
+        clearTimeout(abortTimeout)
       }
+
+      // Estimate token counts (LiteLLM streaming does not return usage in all providers)
+      tokenInput = chatMessages.reduce((acc, m) => acc + Math.ceil(m.content.length / 4), 0)
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
       yield { type: 'error', message }

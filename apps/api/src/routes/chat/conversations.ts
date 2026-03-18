@@ -69,12 +69,16 @@ const AttachDocumentBodySchema = z.object({
 // ── SSE helpers ───────────────────────────────────────────────────────────────
 
 function setSseHeaders(reply: FastifyReply): void {
+  const origin = (reply.request.headers['origin'] || '*') as string
   reply.raw.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache, no-transform',
-    Connection: 'keep-alive',
+    'Connection': 'keep-alive',
     'X-Accel-Buffering': 'no',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
   })
+  reply.raw.write(':ok\n\n')
 }
 
 function writeSseError(reply: FastifyReply, message: string, code: string): void {
@@ -226,6 +230,11 @@ export async function chatConversationRoutes(fastify: FastifyInstance): Promise<
 
       // Open SSE stream
       setSseHeaders(reply)
+
+      // Send immediate ping so browser knows SSE is alive (prevents premature timeout)
+      reply.raw.write(`data: ${JSON.stringify({ type: "ping" })}
+
+`)
 
       // Handle client disconnect — clean up any active stream
       let streamAborted = false
