@@ -34,5 +34,11 @@ model_list:
       model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
+  # Sprint 4: translation alias — qwen2.5:1.5b for fast short-text translation tasks
+  - model_name: translation
+    litellm_params:
+      model: ollama/qwen2.5:1.5b
+      api_base: http://172.17.0.1:11434
+
 general_settings:
   master_key: sk-dev-master-key
