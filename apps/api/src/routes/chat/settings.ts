@@ -65,6 +65,17 @@ const UpdateChatSettingsBodySchema = z
       .max(50, 'Maximum 50 allowed origins')
       .optional(),
     model: z.string().trim().min(1).max(120).nullable().optional(),
+    // Sprint 4: Auto-translate fields
+    translationEnabled: z.boolean().optional(),
+    supportedLanguages: z
+      .array(z.string().regex(/^[a-z]{2}$/, 'Each language must be an ISO 639-1 code'))
+      .max(20)
+      .optional(),
+    defaultLanguage: z
+      .string()
+      .regex(/^[a-z]{2}$/, 'defaultLanguage must be an ISO 639-1 code')
+      .nullable()
+      .optional(),
   })
   .refine(
     (data) => Object.values(data).some((v) => v !== undefined),

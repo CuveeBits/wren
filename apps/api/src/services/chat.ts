@@ -85,6 +85,10 @@ export interface TenantChatSettingsRecord {
   // TODO: Future fields (model, kbDefaults) for forward compatibility
   model?: string | null
   kbDefaults?: unknown
+  // Sprint 4: Auto-translate fields
+  translationEnabled: boolean
+  supportedLanguages: string[]
+  defaultLanguage: string
   createdAt: Date
   updatedAt: Date
 }
@@ -133,6 +137,10 @@ export interface UpdateChatSettingsInput {
   accentColor?: string | null
   widgetTitle?: string | null
   allowedOrigins?: string[]
+  // Sprint 4: Auto-translate fields
+  translationEnabled?: boolean
+  supportedLanguages?: string[]
+  defaultLanguage?: string | null
 }
 
 // ── Infrastructure singletons ─────────────────────────────────────────────────
@@ -502,6 +510,12 @@ export async function sendMessageStream(
   }
 
   // F-03: Build conversation context for ChatAgent
+  // Sprint 4: load translation settings from TenantChatSettings (gate behind translationEnabled)
+  const chatSettings = await db.tenantChatSettings.findUnique({
+    where: { tenantId },
+    select: { translationEnabled: true, supportedLanguages: true, defaultLanguage: true },
+  })
+
   const litellm = getLiteLLMConfig()
   const context: ConversationContext = {
     tenantId,
@@ -513,6 +527,10 @@ export async function sendMessageStream(
     citations,
     litellmBaseUrl: litellm.baseUrl,
     litellmApiKey: litellm.apiKey,
+    // Sprint 4: pass translation config — ChatAgent gates behind translationEnabled
+    translationEnabled: chatSettings?.translationEnabled ?? false,
+    supportedLanguages: chatSettings?.supportedLanguages ?? [],
+    defaultLanguage: chatSettings?.defaultLanguage ?? 'en',
   }
 
   let fullContent = ''
