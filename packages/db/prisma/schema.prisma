@@ -365,6 +365,10 @@ model TenantChatSettings {
   accentColor    String?  @default("#22C55E")
   widgetTitle    String?  @default("Wren Assistant")
   allowedOrigins String[] // exact origins permitted to load WebChat iframe
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  // Sprint 4: Auto-translate fields
+  translationEnabled Boolean  @default(false)
+  supportedLanguages String[] @default([])
+  defaultLanguage    String   @default("en")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
