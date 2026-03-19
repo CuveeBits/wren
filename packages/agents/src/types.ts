@@ -35,6 +35,13 @@ export interface ConversationContext {
   modelId?: string
   /** Max tokens per turn — defaults to 2000 */
   maxTokens?: number
+  // Sprint 4: Auto-translate settings — gated by translationEnabled
+  /** Whether auto-translation is enabled for this tenant */
+  translationEnabled?: boolean
+  /** Supported languages for this tenant (ISO 639-1 codes) */
+  supportedLanguages?: string[]
+  /** Tenant default language (ISO 639-1) — used for response translation */
+  defaultLanguage?: string
 }
 
 export interface AgentStreamChunk {

@@ -12,7 +12,7 @@
  * /packages/agents must NOT import from /packages/channels.
  */
 import type Redis from 'ioredis'
-import { createLiteLLMClient, MODELS } from '@wren/llm'
+import { createLiteLLMClient, MODELS, detectLanguage, translate } from '@wren/llm'
 import { ContextManager } from './context-manager'
 import { assembleMessages } from './prompt-assembler'
 import type { ConversationContext, AgentStreamChunk } from './types'
@@ -56,17 +56,32 @@ export class ChatAgent {
       litellmApiKey,
       modelId,
       maxTokens = 2000,
+      // Sprint 4: translation settings
+      translationEnabled = false,
+      defaultLanguage = 'en',
     } = this.context
 
     // Load conversation history from Redis
     const history = await this.contextManager.load(tenantId, conversationId)
+
+    // Sprint 4: Auto-translate — detect user language and translate to EN before LLM call
+    const translationConfig = { litellmBaseUrl, litellmApiKey }
+    let effectiveMessage = userMessage
+    let userLanguage = defaultLanguage ?? 'en'
+
+    if (translationEnabled) {
+      userLanguage = await detectLanguage(userMessage, translationConfig)
+      if (userLanguage !== 'en') {
+        effectiveMessage = await translate(userMessage, userLanguage, 'en', translationConfig)
+      }
+    }
 
     // Assemble message array
     const messages = assembleMessages({
       systemPromptSnapshot,
       kbChunks,
       history,
-      userMessage,
+      userMessage: effectiveMessage,
     })
 
     // ADR-005: all LLM calls through @wren/llm — never instantiate OpenAI directly
@@ -100,10 +115,28 @@ export class ChatAgent {
         })) {
           fullContent += chunk
           tokenOutput++
-          yield { type: 'chunk', content: chunk }
+          // Sprint 4: when translation is enabled we collect the full EN response
+          // and translate it before streaming — do not yield individual chunks yet
+          if (!translationEnabled || userLanguage === 'en') {
+            yield { type: 'chunk', content: chunk }
+          }
         }
       } finally {
         clearTimeout(abortTimeout)
+      }
+
+      // Sprint 4: translate EN response back to user language, then re-stream
+      if (translationEnabled && userLanguage !== 'en' && fullContent) {
+        const translatedResponse = await translate(
+          fullContent,
+          'en',
+          userLanguage,
+          { litellmBaseUrl, litellmApiKey }
+        )
+        // Re-stream the translated response as a single chunk
+        // (streaming is preserved — caller sees the same event shape)
+        yield { type: 'chunk', content: translatedResponse }
+        fullContent = translatedResponse
       }
 
       // Estimate token counts (LiteLLM streaming does not return usage in all providers)
@@ -114,7 +147,7 @@ export class ChatAgent {
       return
     }
 
-    // Persist turn to Redis context (both user and assistant messages)
+    // Persist turn to Redis context — store user original message and translated response
     await this.contextManager.persistTurn(tenantId, conversationId, userMessage, fullContent)
 
     yield { type: 'done', tokenInput, tokenOutput }
