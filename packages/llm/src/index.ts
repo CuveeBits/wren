@@ -25,3 +25,7 @@ export { executePrompt } from './execute'
 export type { ExecuteOptions, StreamChunk } from './execute'
 
 export type { CitationRef } from './execute'
+
+// Sprint 4: TranslationService — GDPR-native auto-translation via Ollama
+export { detectLanguage, translate } from './translation'
+export type { TranslationConfig } from './translation'
