@@ -194,3 +194,52 @@ import { llm } from '@wren/llm'
 > > 7. ---
 > >               
 > >                8. *Last updated: 13/03/2026 — v0.1 initial*
+
+---
+
+## Rule 11: Never overwrite an existing file — always extend
+
+Before touching any file, read it and understand what it does.
+If a file already exists and works: **add to it, do not replace it.**
+If you believe a file needs to be fully replaced: stop, explain why in a comment to your brief, and wait for explicit sign-off.
+
+This rule exists because Sprint 4 overwrote the Sprint 3 chat page and KB, breaking everything that had been built and tested. It will not happen again.
+
+```typescript
+// ✅ CORRECT — add a new route to an existing route file
+export async function chatRoutes(fastify: FastifyInstance) {
+  // ... existing routes untouched ...
+
+  // NEW: Sprint 4 translation settings
+  fastify.get('/settings/:tenantId', ...)
+}
+
+// ❌ REJECTED — creating a new file that duplicates/replaces an existing one
+// apps/api/src/routes/chat-v2.ts  ← never do this
+```
+
+### For frontend pages specifically:
+- If `/[tenantSlug]/chat/page.tsx` exists: extend it
+- If `shell.tsx` has nav links: add to the array, do not rewrite the component
+- If a component already renders something: add props/state, do not replace the render
+
+---
+
+## Rule 12: Cumulative testing — every sprint, every time
+
+Rex (or any tester) runs the **full cumulative Playwright suite** on every sprint, without exception.
+
+- Sprint 1 spec + Sprint 2 spec + Sprint 3 spec + ... + Sprint N spec — all of them, every time
+- All previous sprints must pass before the new sprint's results mean anything
+- Test files live in `tests/rex/`: `sprint-1.spec.ts`, `sprint-2.spec.ts`, etc.
+- Previous test files are **never modified or deleted**
+- If a previous sprint test breaks: it is a CRIT blocker on the new sprint, not a known issue
+- If the full suite takes 4 hours, it takes 4 hours
+
+Report format: `Sprint 1 ✅ · Sprint 2 ✅ · Sprint 3 ✅ · Sprint N [result]`
+
+A sprint is not done until ALL sprints pass — not just the new one.
+
+---
+
+*Rules 11-12 added 2026-03-20 after Sprint 4 regression incident*
