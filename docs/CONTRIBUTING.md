@@ -243,3 +243,88 @@ A sprint is not done until ALL sprints pass — not just the new one.
 ---
 
 *Rules 11-12 added 2026-03-20 after Sprint 4 regression incident*
+
+---
+
+## Rule 13: DB migrations are code — they ship with the sprint
+
+ is for local development exploration only. It NEVER runs on the lab or production.
+
+Every schema change must have a proper migration file in . If there is no migration file, the schema change does not exist for anyone else.
+
+```bash
+# ✅ CORRECT — creates a migration file, tracks the change
+pnpm --filter @wren/db exec prisma migrate dev --name sprint4_translation_fields
+
+# ❌ REJECTED on lab/prod — no migration file created, schema drifts
+prisma db push
+```
+
+To verify: `prisma migrate status` must report No pending migrations on the lab before any test run. If it reports pending migrations: stop, investigate, do not test.
+
+---
+
+## Rule 14: No silent fallbacks for required environment variables
+
+If an environment variable is required for the app to function, throw a clear error at startup if it is missing. Never use `?? localhost:something` as a fallback — it hides deployment problems until the moment they cause a user-visible failure.
+
+```typescript
+// ✅ CORRECT — fails loudly at startup
+const API_BASE = process.env['NEXT_PUBLIC_API_URL']
+if (!API_BASE) throw new Error('NEXT_PUBLIC_API_URL is required')
+
+// ❌ REJECTED — silently points at localhost when deployed remotely
+const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+```
+
+This rule exists because a hardcoded `localhost:3001` fallback caused Load failed errors when the app was accessed from a browser on a different machine — the failure only appeared at runtime, not at build time.
+
+---
+
+## Rule 15: Sprint branch always forks from the previous sprint's tip
+
+Before creating a new sprint branch, identify the exact last commit of the previous sprint:
+
+```bash
+# ✅ CORRECT
+git log sprint/3-chat-interface --oneline -1
+# → e588c3e chore(snapshot): Sprint 3 golden DB snapshot
+git checkout -b sprint/4-auto-translate e588c3e
+
+# ❌ REJECTED — branching from an arbitrary/init commit drops all previous work
+git checkout -b sprint/4-auto-translate cb1951b  # init commit — missing all of Sprint 3
+```
+
+If sprint/N does not contain all the code from sprint/N-1, features will be silently missing. This is what caused the Sprint 4 regression — the branch was created from an init commit, not from the Sprint 3 tip.
+
+---
+
+## Rule 16: Lab deployment checklist — runs before Rex, every time
+
+No exceptions. Francis or the deploying agent runs this before briefing Rex:
+
+```bash
+# 1. Confirm correct branch
+git branch --show-current  # must match the sprint being tested
+
+# 2. Clean working tree
+git status  # must be clean — no uncommitted changes
+
+# 3. Migrations applied
+npx prisma migrate deploy --schema packages/db/prisma/schema.prisma
+# must report: No pending migrations to apply
+
+# 4. Restart service
+sudo systemctl restart wren.service
+sleep 5
+
+# 5. Health check
+curl http://localhost:3001/health
+# must return: { status: ok, services: { database: ok, redis: ok } }
+```
+
+Only when all 5 steps pass: brief Rex to run the test suite.
+
+---
+
+*Rules 13-16 added 2026-03-20 after Sprint 4 regression incident*
