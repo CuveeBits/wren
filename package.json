@@ -8,12 +8,14 @@
     "lint": "turbo run lint",
     "db:migrate": "pnpm --filter @wren/db exec prisma migrate dev",
     "db:seed": "pnpm --filter @wren/db exec prisma db seed",
-    "db:studio": "pnpm --filter @wren/db exec prisma studio"
+    "db:studio": "pnpm --filter @wren/db exec prisma studio",
+    "test:e2e": "playwright test --config=playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "prettier": "^3.2.0",
     "turbo": "^2.0.0",
-    "typescript": "^5.4.0",
-    "prettier": "^3.2.0"
+    "typescript": "^5.4.0"
   },
   "engines": {
     "node": ">=20.0.0",
