@@ -728,11 +728,15 @@ export async function getChatSettings(tenantId: string): Promise<TenantChatSetti
 export async function updateChatSettings(
   input: UpdateChatSettingsInput
 ): Promise<TenantChatSettingsRecord> {
-  const { tenantId, ...data } = input
+  const { tenantId, defaultLanguage, ...rest } = input
+  // Prisma requires defaultLanguage to be string | undefined (not null) for create
+  const updateData = defaultLanguage !== undefined
+    ? { ...rest, defaultLanguage: defaultLanguage ?? undefined }
+    : rest
   const settings = await db.tenantChatSettings.upsert({
     where: { tenantId },
-    create: { id: createId(), tenantId, allowedOrigins: [], ...data },
-    update: data,
+    create: { id: createId(), tenantId, allowedOrigins: [], ...rest },
+    update: updateData,
   })
   return settings as unknown as TenantChatSettingsRecord
 }

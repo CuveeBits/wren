@@ -10,6 +10,7 @@ import { promptRoutes } from './prompts'
 import { kbContextRoutes } from './kb/context'
 import { chatRoutes } from './chat'
 import { widgetRoutes } from './widget'
+import { translationRoutes } from './translation'
 
 interface RouteOptions {
   redis: Redis
@@ -30,6 +31,8 @@ export async function registerRoutes(
       await v1.register(kbContextRoutes, { prefix: '/kb/context' })
       // Sprint 3: Chat interface routes (S-01 through S-09)
       await v1.register(chatRoutes, { prefix: '/chat' })
+      // Sprint 4: Translation routes (S-01)
+      await v1.register(translationRoutes, { prefix: '/translate' })
     },
     { prefix: '/api/v1' }
   )

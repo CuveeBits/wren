@@ -560,7 +560,7 @@ async function parseMultipartUpload(request: FastifyRequest): Promise<ParsedMult
 
     const nameMatch = disposition.match(/name="([^"]+)"/)
     if (!nameMatch) continue
-    const fieldName = nameMatch[1]
+    const fieldName = nameMatch[1] as string
     const fileNameMatch = disposition.match(/filename="([^"]*)"/)
 
     if (fileNameMatch && fileNameMatch[1]) {

@@ -75,7 +75,7 @@ export async function authenticate(
   // The FastifyRequest.auth type is augmented in @wren/types/src/auth.ts
   const authContext: AuthContext = {
     clerkUserId: resolvedUserId,
-    clerkOrgId: orgId,
+    clerkOrgId: orgId ?? '',
     tenantId: tenant.id,
     role,
   }

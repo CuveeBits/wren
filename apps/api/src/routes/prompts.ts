@@ -43,7 +43,7 @@ const ExecuteBodySchema = z.object({
       content: z.string(),
       tokenCount: z.number(),
       chunkIndex: z.number().int(),
-      pageNumber: z.number().int().nullable().optional(),
+      pageNumber: z.number().int().nullable(),
       similarity: z.number(),
       documentTitle: z.string(),
       documentFileName: z.string(),

@@ -17,6 +17,19 @@ import { widgetRoutes } from '../../widget/index'
 
 // ── Mock the chat service ────────────────────────────────────────────────────
 
+vi.mock('../../../config', () => ({
+  config: {
+    litellmBaseUrl: 'http://localhost:4000',
+    litellmApiKey: 'sk-test',
+    port: 3001,
+    nodeEnv: 'test',
+    databaseUrl: 'postgresql://test',
+    redisUrl: 'redis://localhost:6379',
+    clerkPublishableKey: 'pk_test',
+    clerkSecretKey: 'sk_test',
+  },
+}))
+
 vi.mock('../../../services/chat', () => ({
   listConversations: vi.fn(),
   createConversation: vi.fn(),
@@ -225,7 +238,7 @@ describe('Tenant isolation — chat conversation routes', () => {
         'x-test-tenant-id': TENANT_B,
         'content-type': 'application/json',
       },
-      payload: { documentId: 'doc_123' },
+      payload: { documentIds: ['doc_123'] },
     })
 
     expect(response.statusCode).toBe(403)
@@ -257,6 +270,9 @@ describe('Tenant isolation — chat conversation routes', () => {
       allowedOrigins: [],
       model: null,
       kbDefaults: null,
+      translationEnabled: false,
+      supportedLanguages: [],
+      defaultLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
     }
@@ -343,6 +359,9 @@ describe('Tenant isolation — widget routes', () => {
       allowedOrigins: ['https://allowed.com'],
       model: null,
       kbDefaults: null,
+      translationEnabled: false,
+      supportedLanguages: [],
+      defaultLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -375,6 +394,9 @@ describe('Tenant isolation — widget routes', () => {
       allowedOrigins: ['https://allowed.com'],
       model: null,
       kbDefaults: null,
+      translationEnabled: false,
+      supportedLanguages: [],
+      defaultLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -409,6 +431,9 @@ describe('Tenant isolation — widget routes', () => {
       allowedOrigins: ['https://allowed.com'],
       model: null,
       kbDefaults: null,
+      translationEnabled: false,
+      supportedLanguages: [],
+      defaultLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -444,6 +469,9 @@ describe('Tenant isolation — widget routes', () => {
       allowedOrigins: ['https://allowed.com'],
       model: null,
       kbDefaults: null,
+      translationEnabled: false,
+      supportedLanguages: [],
+      defaultLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
     })
@@ -498,6 +526,9 @@ describe('Tenant isolation — widget routes', () => {
       allowedOrigins: ['https://allowed.com'],
       model: null,
       kbDefaults: null,
+      translationEnabled: false,
+      supportedLanguages: [],
+      defaultLanguage: 'en',
       createdAt: new Date(),
       updatedAt: new Date(),
     })

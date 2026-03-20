@@ -26,11 +26,15 @@ import {
   archiveConversation,
   updateConversation,
   sendMessageStream,
+  getChatSettings,
   listMessages,
   attachDocument,
   detachDocument,
   retryLastFailedTurn,
 } from '../../services/chat'
+import { Writable } from 'node:stream'
+import { translate } from '@wren/llm'
+import { config } from '../../config'
 
 // ── Zod schemas ───────────────────────────────────────────────────────────────
 
@@ -243,16 +247,101 @@ export async function chatConversationRoutes(fastify: FastifyInstance): Promise<
         // Forge's real service will check this flag to abort agent pipeline
       })
 
+      // ── Translation: collect → translate → re-stream ────────────────────────
+      const settings = await getChatSettings(request.auth.tenantId)
+      const translationEnabled = settings.translationEnabled ?? false
+
+      // Parse user's preferred language from Accept-Language header
+      let userLang = 'en'
+      if (translationEnabled) {
+        const acceptHeader = request.headers['accept-language'] as string | undefined
+        if (acceptHeader) {
+          const parts = acceptHeader.split(',')
+          for (const part of parts) {
+            const tag = part.trim().split(';')[0]?.trim() ?? ''
+            const code = tag.slice(0, 2).toLowerCase()
+            if (/^[a-z]{2}$/.test(code)) {
+              userLang = code
+              break
+            }
+          }
+        }
+      }
+
+      const needsTranslation = translationEnabled && userLang !== 'en'
+
       try {
-        await sendMessageStream(
-          {
-            conversationId: id,
-            tenantId: request.auth.tenantId,
-            userId: request.auth.clerkUserId,
-            content: bodyResult.data.content,
-          },
-          reply.raw
-        )
+        if (needsTranslation) {
+          // Collect mode: buffer all SSE output, then translate the text, then re-stream
+          const collectedChunks: string[] = []
+          let donePayload: Record<string, unknown> | null = null
+
+          const collector = new Writable({
+            write(chunk: Buffer, _encoding: BufferEncoding, callback: () => void) {
+              collectedChunks.push(chunk.toString('utf8'))
+              callback()
+            },
+          })
+
+          await sendMessageStream(
+            {
+              conversationId: id,
+              tenantId: request.auth.tenantId,
+              userId: request.auth.clerkUserId,
+              content: bodyResult.data.content,
+            },
+            collector as unknown as import('http').ServerResponse
+          )
+
+          if (!streamAborted) {
+            // Parse SSE output to extract text chunks and done event
+            const raw = collectedChunks.join('')
+            const lines = raw.split('\n')
+            const textParts: string[] = []
+
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue
+              try {
+                const parsed = JSON.parse(line.slice(6)) as Record<string, unknown>
+                if (parsed['type'] === 'chunk' && typeof parsed['content'] === 'string') {
+                  textParts.push(parsed['content'])
+                } else if (parsed['type'] === 'done') {
+                  donePayload = parsed
+                }
+              } catch {
+                // Skip non-JSON lines
+              }
+            }
+
+            const fullText = textParts.join('')
+
+            if (fullText) {
+              const translationConfig = {
+                litellmBaseUrl: config.litellmBaseUrl,
+                litellmApiKey: config.litellmApiKey,
+              }
+              const translated = await translate(fullText, 'en', userLang, translationConfig)
+              reply.raw.write(
+                `data: ${JSON.stringify({ type: 'chunk', content: translated })}\n\n`
+              )
+            }
+
+            if (donePayload) {
+              reply.raw.write(`data: ${JSON.stringify(donePayload)}\n\n`)
+            }
+          }
+        } else {
+          // No translation — original streaming behavior
+          await sendMessageStream(
+            {
+              conversationId: id,
+              tenantId: request.auth.tenantId,
+              userId: request.auth.clerkUserId,
+              content: bodyResult.data.content,
+            },
+            reply.raw
+          )
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unexpected error during streaming'
         if (!streamAborted) {
