@@ -122,7 +122,7 @@ export default function PromptDetailPage() {
           .map((value) => value.trim())
           .filter(Boolean)
           .join(' ')
-          .slice(0, 500) || prompt.title
+          .slice(0, 500) || prompt?.title || ''
 
         kbContext = await getKbContext({
           promptId: id,

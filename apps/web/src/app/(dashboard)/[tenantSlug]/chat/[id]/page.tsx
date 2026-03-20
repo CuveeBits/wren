@@ -40,6 +40,9 @@ import {
   type Citation,
 } from '@/components/chat/api'
 import type { KbDocument } from '@/components/kb/api'
+// Sprint 4: translation
+import { getChatSettings } from '@/components/chat/api'
+import { LANGUAGE_AUTO } from '@/lib/i18n-chat'
 
 export default function ConversationPage() {
   const { tenantSlug, id } = useParams<{ tenantSlug: string; id: string }>()
@@ -61,6 +64,10 @@ export default function ConversationPage() {
   const [error, setError] = React.useState<string | null>(null)
 
   const abortRef = React.useRef<AbortController | null>(null)
+
+  // Sprint 4: language selection state
+  const [selectedLanguage, setSelectedLanguage] = React.useState<string>(LANGUAGE_AUTO)
+  const [translationEnabled, setTranslationEnabled] = React.useState(false)
 
   // ── Load conversation ────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -115,6 +122,7 @@ export default function ConversationPage() {
       const timer = setTimeout(() => { handleSend(initial) }, 500)
       return () => clearTimeout(timer)
     }
+    return undefined
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingMessages])
 
@@ -123,6 +131,17 @@ export default function ConversationPage() {
     return () => {
       abortRef.current?.abort()
     }
+  }, [])
+
+  // ── Sprint 4: Load translation settings ──────────────────────────────────
+  React.useEffect(() => {
+    getChatSettings().then((s) => {
+      if (!s) return
+      const enabled = s.translationEnabled ?? false
+      const defaultLang = s.defaultLanguage ?? LANGUAGE_AUTO
+      setTranslationEnabled(enabled)
+      if (enabled) setSelectedLanguage(defaultLang)
+    }).catch(() => {})
   }, [])
 
   // ── Send message ─────────────────────────────────────────────────────────
@@ -173,6 +192,8 @@ export default function ConversationPage() {
 
     await sendMessage(id, {
       content,
+      // Sprint 4: pass selected language to backend for translation
+      language: translationEnabled ? selectedLanguage : undefined,
       signal: abort.signal,
       onChunk: (chunk) => {
         setIsTyping(false)
@@ -362,6 +383,9 @@ export default function ConversationPage() {
           attachedDocs={attachedDocs}
           onOpenPicker={() => setShowKbPicker(true)}
           onDetachDoc={handleDetachDoc}
+          translationEnabled={translationEnabled}
+          selectedLanguage={selectedLanguage}
+          onLanguageChange={setSelectedLanguage}
         />
       )}
 

@@ -74,10 +74,14 @@ export interface TenantChatSettings {
   allowedOrigins: string[]
   createdAt: string
   updatedAt: string
+  // Sprint 4: translation settings
+  translationEnabled: boolean
+  supportedLanguages: string[]
+  defaultLanguage: string
 }
 
 export interface SSEChunk {
-  type: 'chunk' | 'citations' | 'done' | 'error'
+  type: 'chunk' | 'citations' | 'done' | 'error' | 'ping'
   content?: string
   citations?: Citation[]
   messageId?: string
@@ -186,6 +190,8 @@ export async function listMessages(
 
 export interface SendMessageOptions {
   content: string
+  /** Sprint 4: ISO 639-1 language code or 'auto' */
+  language?: string
   onChunk: (chunk: string) => void
   onCitations: (citations: Citation[]) => void
   onDone: (meta: { messageId: string; tokenInput: number; tokenOutput: number }) => void
@@ -202,7 +208,7 @@ export async function sendMessage(
   conversationId: string,
   options: SendMessageOptions
 ): Promise<void> {
-  const { content, onChunk, onCitations, onDone, onError, signal } = options
+  const { content, language, onChunk, onCitations, onDone, onError, signal } = options
   try {
     const res = await fetch(
       `${API_BASE}/api/v1/chat/conversations/${conversationId}/messages`,
@@ -210,7 +216,7 @@ export async function sendMessage(
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, ...(language ? { language } : {}) }),
         signal,
       }
     )
@@ -313,6 +319,10 @@ export async function updateChatSettings(
       | 'accentColor'
       | 'widgetTitle'
       | 'allowedOrigins'
+      // Sprint 4: translation
+      | 'translationEnabled'
+      | 'defaultLanguage'
+      | 'supportedLanguages'
     >
   >
 ): Promise<TenantChatSettings | null> {

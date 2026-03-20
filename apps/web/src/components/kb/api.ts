@@ -145,7 +145,8 @@ export async function createKbCollection(
     credentials: 'include',
     body: JSON.stringify({ name, parentId }),
   })
-  return json?.data ?? []
+  if (!json?.data) throw new Error('createKbCollection: no data returned')
+  return json.data
 }
 
 export async function renameKbCollection(id: string, name: string): Promise<KbCollection> {
@@ -155,7 +156,8 @@ export async function renameKbCollection(id: string, name: string): Promise<KbCo
     credentials: 'include',
     body: JSON.stringify({ name }),
   })
-  return json?.data ?? []
+  if (!json?.data) throw new Error('renameKbCollection: no data returned')
+  return json.data
 }
 
 export async function deleteKbCollection(id: string): Promise<void> {
@@ -175,7 +177,8 @@ export async function updateKbDocumentTags(id: string, tags: string[]): Promise<
     credentials: 'include',
     body: JSON.stringify({ tags }),
   })
-  return json?.data ?? []
+  if (!json?.data) throw new Error('updateKbDocumentTags: no data returned')
+  return json.data
 }
 
 export async function uploadKbDocument(
@@ -221,7 +224,7 @@ export async function getKbDocumentStatus(id: string): Promise<KbDocumentStatus>
       credentials: 'include',
     }
   )
-  return json?.data?.status ?? null
+  return (json?.data?.status ?? null) as KbDocumentStatus
 }
 
 export async function deleteKbDocument(id: string): Promise<void> {

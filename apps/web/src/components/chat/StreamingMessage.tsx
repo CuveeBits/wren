@@ -19,10 +19,12 @@ interface StreamingMessageProps {
   content: string
   /** Whether the stream is still active (shows cursor when true) */
   isStreaming: boolean
+  /** Sprint 4: show 'Translating...' overlay while backend translates the response */
+  isTranslating?: boolean
   className?: string
 }
 
-export function StreamingMessage({ content, isStreaming, className }: StreamingMessageProps) {
+export function StreamingMessage({ content, isStreaming, isTranslating = false, className }: StreamingMessageProps) {
   return (
     <div
       className={cn(
@@ -47,11 +49,18 @@ export function StreamingMessage({ content, isStreaming, className }: StreamingM
       >
         {content}
       </ReactMarkdown>
-      {isStreaming && (
+      {isStreaming && !isTranslating && (
         <span
           className="inline-block w-1.5 h-4 ml-0.5 bg-foreground/70 animate-pulse rounded-sm align-middle"
           aria-hidden="true"
         />
+      )}
+      {/* Sprint 4: translating state overlay */}
+      {isTranslating && (
+        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground/70 ml-1 animate-pulse">
+          <span>&#x1F310;</span>
+          <span>Translating…</span>
+        </span>
       )}
     </div>
   )

@@ -14,10 +14,14 @@ import ReactMarkdown from 'react-markdown'
 import { cn } from '@wren/ui'
 import { Skeleton } from '@wren/ui'
 import type { Message, Citation } from './api'
+// Sprint 4: translation badge
+import { LANGUAGE_ENGLISH_NAME } from '@/lib/i18n-chat'
 
 interface MessageBubbleProps {
   message: Message
   onCitationClick?: (citations: Citation[], index: number) => void
+  /** ISO 639-1 code of the original language, e.g. 'de'. Shows a translation badge. */
+  translatedFrom?: string
 }
 
 /** Replace [1], [2] markers with clickable spans */
@@ -57,7 +61,7 @@ function renderContentWithCitations(
   })
 }
 
-export function MessageBubble({ message, onCitationClick }: MessageBubbleProps) {
+export function MessageBubble({ message, onCitationClick, translatedFrom }: MessageBubbleProps) {
   const isUser = message.role === 'user'
   const isStreaming = message.status === 'streaming'
   const isError = message.status === 'error'
@@ -123,9 +127,18 @@ export function MessageBubble({ message, onCitationClick }: MessageBubbleProps) 
             <span className="inline-block w-1.5 h-4 ml-0.5 bg-current animate-pulse rounded-sm align-middle" />
           )}
         </div>
-        <span className="text-[10px] text-muted-foreground px-1">
-          {formatTime(message.createdAt)}
-        </span>
+        <div className="flex items-center gap-2 px-1">
+          <span className="text-[10px] text-muted-foreground">
+            {formatTime(message.createdAt)}
+          </span>
+          {/* Sprint 4: translation badge */}
+          {translatedFrom && LANGUAGE_ENGLISH_NAME[translatedFrom] && (
+            <span className="text-[10px] text-muted-foreground/70 flex items-center gap-0.5">
+              <span aria-hidden="true">🌐</span>
+              {' Translated from '}{LANGUAGE_ENGLISH_NAME[translatedFrom]}
+            </span>
+          )}
+        </div>
       </div>
     </div>
   )
