@@ -23,7 +23,6 @@ import { ArrowLeft, Loader2, Save, Check, Plus, X } from 'lucide-react'
 import Link from 'next/link'
 import { Button, Input, Skeleton, cn } from '@wren/ui'
 import { getChatSettings, updateChatSettings, type TenantChatSettings } from '@/components/chat/api'
-import { SUPPORTED_LANGUAGES } from '@/lib/i18n-chat'
 
 // ─── Validation ────────────────────────────────────────────────────────────
 
@@ -187,10 +186,6 @@ export default function ChatSettingsPage() {
   const [brandColor, setBrandColor] = React.useState('#0F172A')
   const [accentColor, setAccentColor] = React.useState('#22C55E')
   const [allowedOrigins, setAllowedOrigins] = React.useState<string[]>([])
-  // Sprint 4: translation state
-  const [translationEnabled, setTranslationEnabled] = React.useState(false)
-  const [defaultLanguage, setDefaultLanguage] = React.useState('en')
-  const [supportedLanguages, setSupportedLanguages] = React.useState<string[]>(['en', 'de', 'fr', 'cs', 'pl'])
 
   // Validation errors
   const [errors, setErrors] = React.useState<Record<string, string>>({})
@@ -209,10 +204,6 @@ export default function ChatSettingsPage() {
           setBrandColor(s.brandColor ?? '#0F172A')
           setAccentColor(s.accentColor ?? '#22C55E')
           setAllowedOrigins(s.allowedOrigins ?? [])
-          // Sprint 4: translation
-          setTranslationEnabled(s.translationEnabled ?? false)
-          setDefaultLanguage(s.defaultLanguage ?? 'en')
-          setSupportedLanguages(s.supportedLanguages?.length ? s.supportedLanguages : ['en', 'de', 'fr', 'cs', 'pl'])
         }
       })
       .catch((err) => {
@@ -254,10 +245,6 @@ export default function ChatSettingsPage() {
         brandColor,
         accentColor,
         allowedOrigins,
-        // Sprint 4: translation
-        translationEnabled,
-        defaultLanguage,
-        supportedLanguages,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
@@ -455,98 +442,6 @@ export default function ChatSettingsPage() {
             </p>
           </div>
           <OriginsEditor origins={allowedOrigins} onChange={setAllowedOrigins} />
-        </section>
-
-        {/* ── Auto-Translation (Sprint 4) ── */}
-        <section className="flex flex-col gap-4">
-          <div>
-            <h2 className="text-base font-semibold border-b border-border pb-2">
-              Auto-Translation
-            </h2>
-            <p className="text-xs text-muted-foreground mt-2">
-              When enabled, user messages are automatically translated to English for the AI,
-              and responses are translated back to the user&apos;s language via local Ollama.
-              No data leaves your infrastructure.
-            </p>
-          </div>
-
-          {/* Enable toggle */}
-          <div className="flex items-center justify-between rounded-lg border border-border p-4">
-            <div>
-              <p className="text-sm font-medium">Enable auto-translation</p>
-              <p className="text-xs text-muted-foreground">
-                Translate between user&apos;s language and English automatically.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={translationEnabled}
-              onClick={() => setTranslationEnabled(!translationEnabled)}
-              className={cn(
-                'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                translationEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
-              )}
-            >
-              <span
-                className={cn(
-                  'inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform',
-                  translationEnabled ? 'translate-x-6' : 'translate-x-1'
-                )}
-              />
-            </button>
-          </div>
-
-          {translationEnabled && (
-            <>
-              {/* Default language */}
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="default-language" className="text-sm font-medium">
-                  Default Language
-                </label>
-                <p className="text-xs text-muted-foreground">
-                  The language to pre-select in the chat composer.
-                </p>
-                <select
-                  id="default-language"
-                  value={defaultLanguage}
-                  onChange={(e) => setDefaultLanguage(e.target.value)}
-                  className="w-48 rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  {SUPPORTED_LANGUAGES.map((lang) => (
-                    <option key={lang.code} value={lang.code}>{lang.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Supported languages checkboxes */}
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium">Supported Languages</label>
-                <p className="text-xs text-muted-foreground">
-                  Languages your users can select in the chat interface.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {SUPPORTED_LANGUAGES.map((lang) => (
-                    <label key={lang.code} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={supportedLanguages.includes(lang.code)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSupportedLanguages((prev) => [...prev, lang.code])
-                          } else {
-                            setSupportedLanguages((prev) => prev.filter((c) => c !== lang.code))
-                          }
-                        }}
-                        className="rounded border-border"
-                      />
-                      {lang.label}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
         </section>
 
         {/* ── Save ── */}

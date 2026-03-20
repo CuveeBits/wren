@@ -93,7 +93,8 @@ export interface SSEChunk {
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
-const API_BASE = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:3001'
+const API_BASE = process.env["NEXT_PUBLIC_API_URL"]
+if (!API_BASE) throw new Error("NEXT_PUBLIC_API_URL is required")
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 

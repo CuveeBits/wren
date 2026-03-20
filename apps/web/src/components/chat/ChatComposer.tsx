@@ -12,7 +12,6 @@ import { Send, Paperclip, X, Loader2 } from 'lucide-react'
 import { Button, cn } from '@wren/ui'
 import type { KbDocument } from '@/components/kb/api'
 // Sprint 4: translation imports
-import { LanguageSelector } from '@/components/chat/LanguageSelector'
 import { LANGUAGE_AUTO } from '@/lib/i18n-chat'
 
 interface ChatComposerProps {
@@ -161,14 +160,6 @@ export function ChatComposer({
         <p className="text-[10px] text-muted-foreground">
           Enter to send · Shift+Enter for newline
         </p>
-        {/* Sprint 4: language selector — only shown when translation is enabled */}
-        {translationEnabled && onLanguageChange && (
-          <LanguageSelector
-            value={selectedLanguage}
-            onChange={onLanguageChange}
-            disabled={isStreaming || disabled}
-          />
-        )}
       </div>
     </div>
   )
