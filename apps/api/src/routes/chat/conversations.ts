@@ -254,6 +254,8 @@ export async function chatConversationRoutes(fastify: FastifyInstance): Promise<
       // Parse user's preferred language from Accept-Language header
       let userLang = 'en'
       if (translationEnabled) {
+        // Use tenant defaultLanguage first, fall back to Accept-Language header
+        userLang = settings.defaultLanguage && settings.defaultLanguage !== "auto" ? settings.defaultLanguage : userLang
         const acceptHeader = request.headers['accept-language'] as string | undefined
         if (acceptHeader) {
           const parts = acceptHeader.split(',')
