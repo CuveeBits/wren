@@ -53,6 +53,7 @@ model Tenant {
   channelConfigs ChannelConfig[]
   workflows      Workflow[]
   auditLogs      AuditLog[]
+  tenantLocales  TenantLocale[]
 }
 
 // ─── USER ────────────────────────────────────────────────────────────────────
@@ -63,6 +64,7 @@ model TenantUser {
   clerkUserId String
   role        UserRole @default(USER)
   department  String?
+  preferredLocale String   @default("en")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -371,4 +373,18 @@ model TenantChatSettings {
   defaultLanguage    String   @default("en")
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+}
+
+// ─── TENANT LOCALE (Sprint 4b) ────────────────────────────────────────────────
+
+model TenantLocale {
+  id           String   @id @default(cuid())
+  tenantId     String
+  locale       String
+  translations Json
+  generatedAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, locale])
 }

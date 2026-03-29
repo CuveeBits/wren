@@ -29,3 +29,6 @@ export type { CitationRef } from './execute'
 // Sprint 4: TranslationService — GDPR-native auto-translation via Ollama
 export { detectLanguage, translate } from './translation'
 export type { TranslationConfig } from './translation'
+
+// Sprint 4b: TranslationService class + getTranslationService + translateJson
+export { TranslationService, getTranslationService } from './translation'

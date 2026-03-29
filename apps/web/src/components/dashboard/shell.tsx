@@ -3,6 +3,8 @@
 /**
  * Dashboard shell — the main layout for all authenticated tenant pages.
  *
+ * Sprint 4b: nav labels use useTranslations() for UI i18n.
+ *
  * Features:
  * - Sidebar navigation (responsive — collapses on mobile)
  * - User avatar (from Clerk)
@@ -12,9 +14,9 @@
  * Sprint 0: nav links are placeholders (no href yet). Real routes ship Sprint 1+.
  */
 import * as React from 'react'
-import { usePathname } from 'next/navigation'
 import { useTheme } from 'next-themes'
 import { useUser, UserButton } from '@clerk/nextjs'
+import { useTranslations } from '@/i18n/translations-context'
 import {
   Sidebar,
   SidebarHeader,
@@ -28,14 +30,13 @@ import {
 import {
   LayoutDashboard,
   Sparkles,
-  BookOpen,
   Bot,
+  Database,
   Workflow,
   MessageSquare,
   BarChart2,
   Settings,
   Menu,
-  Languages,
 } from 'lucide-react'
 
 interface DashboardShellProps {
@@ -43,29 +44,25 @@ interface DashboardShellProps {
   children: React.ReactNode
 }
 
-const NAV_ITEMS = [
-  { label: 'Dashboard', icon: <LayoutDashboard />, hrefSuffix: '', sprint: 0 },
-  { label: 'Prompts', icon: <Sparkles />, hrefSuffix: '/prompts', sprint: 1 },
-  { label: 'Knowledge Base', icon: <BookOpen />, hrefSuffix: '/kb', sprint: 2 },
-  { label: 'Chat', icon: <MessageSquare />, hrefSuffix: '/chat', sprint: 3 },
-  { label: 'Translation', icon: <Languages />, hrefSuffix: '/settings/translation', sprint: 4 },
-  { label: 'Agents', icon: <Bot />, hrefSuffix: '#', sprint: 2 },
-  { label: 'Workflows', icon: <Workflow />, hrefSuffix: '#', sprint: 4 },
-  { label: 'Channels', icon: <MessageSquare />, hrefSuffix: '#', sprint: 4 },
-  { label: 'Analytics', icon: <BarChart2 />, hrefSuffix: '#', sprint: 5 },
-]
-
-const BOTTOM_NAV = [
-  { label: 'Settings', icon: <Settings />, href: '#' },
-]
-
 export function DashboardShell({ tenantSlug, children }: DashboardShellProps) {
-  const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const { user } = useUser()
   const [sidebarOpen, setSidebarOpen] = React.useState(false)
+  const t = useTranslations()
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark')
+
+  const NAV_ITEMS = [
+    { label: t('nav.dashboard'), icon: <LayoutDashboard />, hrefSuffix: '', sprint: 0 },
+    { label: t('nav.prompts'), icon: <Sparkles />, hrefSuffix: '/prompts', sprint: 1 },
+    { label: t('nav.kb'), icon: <Database />, hrefSuffix: '/kb', sprint: 2 },
+    { label: t('nav.chat'), icon: <MessageSquare />, hrefSuffix: '/chat', sprint: 3 },
+    { label: t('nav.agents'), icon: <Bot />, hrefSuffix: '#', sprint: 2 },
+    { label: t('nav.workflows'), icon: <Workflow />, hrefSuffix: '#', sprint: 4 },
+    { label: t('nav.channels'), icon: <MessageSquare />, hrefSuffix: '#', sprint: 4 },
+    { label: t('nav.analytics'), icon: <BarChart2 />, hrefSuffix: '#', sprint: 5 },
+    { label: t('nav.settings'), icon: <Settings />, hrefSuffix: '/settings/profile', sprint: 0 },
+  ]
 
   const sidebarContent = (
     <>
@@ -85,20 +82,19 @@ export function DashboardShell({ tenantSlug, children }: DashboardShellProps) {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarSection label="Menu">
+        <SidebarSection label={t('nav.menu')}>
           {NAV_ITEMS.map((item) => {
             const href =
               item.hrefSuffix === '#'
                 ? '#'
                 : `/${tenantSlug}${item.hrefSuffix}`
-            const isActive = href !== '#' && (href === `/${tenantSlug}` ? pathname === href : pathname.startsWith(href))
             return (
               <SidebarNavItem
                 key={item.label}
                 icon={item.icon}
                 label={item.label}
                 href={href}
-                active={isActive}
+                active={item.hrefSuffix !== '#'}
               />
             )
           })}
@@ -156,7 +152,7 @@ export function DashboardShell({ tenantSlug, children }: DashboardShellProps) {
             type="button"
             onClick={() => setSidebarOpen(true)}
             className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-            aria-label="Open navigation"
+            aria-label={t('nav.openNav')}
           >
             <Menu className="h-5 w-5" />
           </button>
