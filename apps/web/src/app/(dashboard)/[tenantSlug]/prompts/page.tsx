@@ -17,7 +17,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 import { Button, Input, Skeleton, cn } from '@wren/ui'
 import { PromptCard } from '@/components/prompt/PromptCard'
-import { useTranslations } from '@/i18n/translations-context'
+import { useTranslations, useLocale } from '@/i18n/translations-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +53,12 @@ export default function PromptsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations()
+  const locale = useLocale()
+
+  // Sprint 4c (F-04): translated prompt titles/descriptions map
+  const [promptTranslations, setPromptTranslations] = React.useState<
+    Record<string, { title: string; description: string | null }>
+  >({})
 
   const [departments, setDepartments] = React.useState<string[]>([])
   const [prompts, setPrompts] = React.useState<PromptSummary[]>([])
@@ -77,6 +83,24 @@ export default function PromptsPage() {
     if (activeDept) p.set('dept', activeDept)
     router.replace(`?${p.toString()}`, { scroll: false })
   }, [debouncedSearch, activeDept, router])
+
+  // Sprint 4c (F-04): Fetch translated prompt titles/descriptions when locale changes
+  React.useEffect(() => {
+    if (!locale || locale === 'en') {
+      setPromptTranslations({})
+      return
+    }
+    const qs = new URLSearchParams({ tenantSlug })
+    fetch(`${API_BASE}/api/v1/tenant/prompts/locale/${locale}?${qs}`, { credentials: 'omit' })
+      .then((r) => {
+        if (r.ok) return r.json()
+        return null
+      })
+      .then((j) => {
+        if (j?.data) setPromptTranslations(j.data as Record<string, { title: string; description: string | null }>)
+      })
+      .catch(console.error)
+  }, [locale, tenantSlug])
 
   // Fetch departments on mount
   React.useEffect(() => {
@@ -238,13 +262,18 @@ export default function PromptsPage() {
           ) : (
             <>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {prompts.map((prompt) => (
+                {prompts.map((prompt) => {
+                  const tx = promptTranslations[prompt.id]
+                  return (
                   <PromptCard
                     key={prompt.id}
                     tenantSlug={tenantSlug}
                     {...prompt}
+                    title={tx?.title ?? prompt.title}
+                    description={tx?.description ?? prompt.description}
                   />
-                ))}
+                  )
+                })}
               </div>
 
               {hasMore && (

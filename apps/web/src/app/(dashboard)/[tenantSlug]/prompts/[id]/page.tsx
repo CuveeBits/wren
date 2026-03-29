@@ -22,6 +22,7 @@ import type { CitationItem } from '@/components/kb/CitationPanel'
 import { SaveToKbToggle } from '@/components/kb/SaveToKbToggle'
 import { KbTagBadge } from '@/components/kb/KbTagBadge'
 import { getKbContext, getKbDocument } from '@/components/kb/api'
+import { useLocale } from '@/i18n/translations-context'
 import type { KbContextChunk, KbDocument } from '@/components/kb/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -67,6 +68,7 @@ const DIFFICULTY_VARIANT: Record<
 
 export default function PromptDetailPage() {
   const params = useParams<{ tenantSlug: string; id: string }>()
+  const locale = useLocale()
   const { tenantSlug, id } = params
   const router = useRouter()
 
@@ -140,6 +142,7 @@ export default function PromptDetailPage() {
           documentIds: attachedDocumentIds,
           kbContext,
           saveToKb,
+          locale,  // Sprint 4c (F-06): language-aware LLM responses
         }),
       })
 

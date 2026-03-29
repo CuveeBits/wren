@@ -231,6 +231,45 @@ export class TranslationService {
   }
 
   /**
+   * translatePrompts — Sprint 4c (F-02).
+   * Translates an array of prompts (id + title + description) in a single LLM call.
+   * Flattens to "promptId::title" / "promptId::description" keys, calls translateJson(),
+   * then reconstructs into nested output.
+   * Returns Record<promptId, { title: string, description: string }>.
+   */
+  async translatePrompts(
+    prompts: Array<{ id: string; title: string; description?: string | null }>,
+    toLang: string
+  ): Promise<Record<string, { title: string; description: string }>> {
+    if (toLang === 'en') {
+      return Object.fromEntries(
+        prompts.map((p) => [p.id, { title: p.title, description: p.description ?? '' }])
+      )
+    }
+
+    // Flatten to "promptId::title" / "promptId::description"
+    const flat: Record<string, string> = {}
+    for (const p of prompts) {
+      flat[`${p.id}::title`] = p.title
+      if (p.description) {
+        flat[`${p.id}::description`] = p.description
+      }
+    }
+
+    const translated = await this.translateJson(flat, toLang)
+
+    // Reconstruct
+    const result: Record<string, { title: string; description: string }> = {}
+    for (const p of prompts) {
+      result[p.id] = {
+        title: translated[`${p.id}::title`] ?? p.title,
+        description: translated[`${p.id}::description`] ?? p.description ?? '',
+      }
+    }
+    return result
+  }
+
+  /**
    * translateJson — Sprint 4b (F-04).
    * Translates an entire flat JSON object of UI strings in a single LLM call.
    * Returns a translated Record<string, string> with the same keys.
@@ -278,4 +317,18 @@ export function getTranslationService(): TranslationService {
     _instance = new TranslationService({ baseUrl, apiKey })
   }
   return _instance
+}
+
+// ─── Sprint 4c: translatePrompts() standalone ────────────────────────────────
+
+/**
+ * translatePrompts() — Sprint 4c (F-02) standalone helper.
+ * Delegates to the TranslationService singleton.
+ * Use this for one-off calls without needing to manage a service instance.
+ */
+export async function translatePrompts(
+  prompts: Array<{ id: string; title: string; description?: string | null }>,
+  toLang: string
+): Promise<Record<string, { title: string; description: string }>> {
+  return getTranslationService().translatePrompts(prompts, toLang)
 }

@@ -45,15 +45,16 @@ model Tenant {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  users          TenantUser[]
-  agents         Agent[]
-  knowledgeBases KnowledgeBase[]
-  prompts        Prompt[]
-  chatSessions   ChatSession[]
-  channelConfigs ChannelConfig[]
-  workflows      Workflow[]
-  auditLogs      AuditLog[]
-  tenantLocales  TenantLocale[]
+  users               TenantUser[]
+  agents              Agent[]
+  knowledgeBases      KnowledgeBase[]
+  prompts             Prompt[]
+  chatSessions        ChatSession[]
+  channelConfigs      ChannelConfig[]
+  workflows           Workflow[]
+  auditLogs           AuditLog[]
+  tenantLocales       TenantLocale[]
+  tenantPromptLocales TenantPromptLocale[] @relation("TenantPromptLocales")
 }
 
 // ─── USER ────────────────────────────────────────────────────────────────────
@@ -196,6 +197,7 @@ model Prompt {
   updatedAt             DateTime @updatedAt
 
   tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  locales TenantPromptLocale[]
 
   @@index([tenantId])
   @@index([department])
@@ -387,4 +389,23 @@ model TenantLocale {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@unique([tenantId, locale])
+}
+
+// ─── TENANT PROMPT LOCALE (Sprint 4c) ─────────────────────────────────────────
+
+model TenantPromptLocale {
+  id          String   @id @default(cuid())
+  tenantId    String
+  promptId    String
+  locale      String
+  title       String
+  description String?
+  generatedAt DateTime @default(now())
+  stale       Boolean  @default(false)
+
+  tenant Tenant @relation("TenantPromptLocales", fields: [tenantId], references: [id])
+  prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, promptId, locale])
+  @@index([tenantId, locale])
 }

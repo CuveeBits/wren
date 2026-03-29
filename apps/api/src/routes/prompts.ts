@@ -17,6 +17,7 @@ import { db } from '@wren/db'
 import { executePrompt } from '@wren/llm'
 import type { CitationRef } from '@wren/llm'
 import { authenticate } from '../plugins/auth'
+import { getLanguageInstruction } from '../lib/i18n-support'
 import { config } from '../config'
 import { retrieveChunks } from '../services/kb/retrieval'
 import type { KbChunkResult } from '../services/kb/retrieval'
@@ -35,6 +36,8 @@ const ExecuteBodySchema = z.object({
   variables: z.record(z.string()),
   /** Sprint 2 (F-05): optional KB document IDs for context injection */
   documentIds: z.array(z.string()).max(20).optional(),
+  /** Sprint 4c (F-06): locale for language-aware LLM responses */
+  locale: z.string().min(2).max(10).optional(),
   /** Optional pre-ranked KB chunks from /kb/context. */
   kbContext: z.array(
     z.object({
@@ -155,7 +158,7 @@ export async function promptRoutes(fastify: FastifyInstance): Promise<void> {
       })
       if (!prompt) return reply.status(404).send({ error: 'Prompt not found' })
 
-      const { variables, documentIds, kbContext, saveToKb } = bodyResult.data
+      const { variables, documentIds, kbContext, saveToKb, locale } = bodyResult.data
       const { tenantId } = request.auth
 
       // ── Sprint 2 (F-05): KB context injection ────────────────────────────
@@ -224,12 +227,18 @@ export async function promptRoutes(fastify: FastifyInstance): Promise<void> {
       let fullOutput = ''
 
       try {
+        // F-06: Sprint 4c — prepend language instruction to system message
+        const langInstruction = getLanguageInstruction(locale ?? '')
+        const finalSystemMessage = langInstruction
+          ? [langInstruction, systemMessage].filter(Boolean).join('\n\n')
+          : systemMessage
+
         const generator = executePrompt({
           promptTemplate: prompt.promptTemplate,
           variables,
           litellmBaseUrl: config.litellmBaseUrl,
           litellmApiKey: config.litellmApiKey,
-          systemMessage,
+          systemMessage: finalSystemMessage,
           stream: true,
         })
         for await (const chunk of generator) {
@@ -247,6 +256,9 @@ export async function promptRoutes(fastify: FastifyInstance): Promise<void> {
 
       if (completed) {
         // Increment usage count (fire-and-forget)
+        // Sprint 4c (F-07): usageCount-only update does NOT mark TenantPromptLocale as stale.
+        // Stale invalidation belongs in admin CRUD routes (PATCH/DELETE /prompts/:id) when
+        // title or description changes. Add it there when admin CRUD is implemented.
         db.prompt.update({ where: { id: prompt.id }, data: { usageCount: { increment: 1 } } })
           .catch((err: unknown) => fastify.log.warn({ err }, 'Failed to increment usageCount'))
 

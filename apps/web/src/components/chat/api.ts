@@ -134,6 +134,8 @@ export async function listConversations(
 export async function createConversation(opts?: {
   documentIds?: string[]
   channel?: 'app' | 'webchat'
+  /** Sprint 4c (F-06): locale for language-aware LLM responses */
+  locale?: string
 }): Promise<Conversation | null> {
   const json = await fetchJson<{ data: Conversation }>(
     '/api/v1/chat/conversations',

@@ -101,6 +101,11 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
         data: { tenantId, locale, translations },
       })
 
+      // F-03: Sprint 4c — also translate prompts for this locale (fire-and-forget)
+      triggerPromptTranslation(tenantId, locale).catch((err) =>
+        fastify.log.warn({ err, locale, tenantId }, '[F-03] Background prompt translation failed')
+      )
+
       return reply.status(201).send({
         data: record.translations,
         cached: false,
@@ -172,4 +177,46 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
       })
     }
   )
+}
+
+
+// ─── Sprint 4c: F-03 — background prompt translation helper ──────────────────
+
+/**
+ * Translates all prompts for a tenant+locale in the background.
+ * Called after UI translations are generated so that prompt translations
+ * are also ready when the user first browses the Prompt Library.
+ */
+async function triggerPromptTranslation(tenantId: string, locale: string): Promise<void> {
+  const allPrompts = await db.prompt.findMany({
+    where: { isPublic: true },
+    select: { id: true, title: true, description: true },
+  })
+
+  if (allPrompts.length === 0) return
+
+  const existing = await db.tenantPromptLocale.findMany({
+    where: { tenantId, locale, stale: false },
+    select: { promptId: true },
+  })
+  const alreadyDone = new Set(existing.map((r) => r.promptId))
+
+  const toTranslate = allPrompts.filter((p) => !alreadyDone.has(p.id))
+
+  if (toTranslate.length === 0) return
+
+  const svc = getTranslationService()
+  const translated = await svc.translatePrompts(toTranslate, locale)
+
+  const upserts = toTranslate.map((p) => {
+    const t = translated[p.id]
+    if (!t) return Promise.resolve()
+    return db.tenantPromptLocale.upsert({
+      where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
+      create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, stale: false },
+      update: { title: t.title, description: t.description || null, stale: false, generatedAt: new Date() },
+    })
+  })
+
+  await Promise.all(upserts)
 }

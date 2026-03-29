@@ -12,6 +12,7 @@ import { chatRoutes } from './chat'
 import { widgetRoutes } from './widget'
 import { translationRoutes } from './translation'
 import { localeRoutes } from './locale'
+import { promptLocaleRoutes } from './prompt-locale'
 
 interface RouteOptions {
   redis: Redis
@@ -36,6 +37,8 @@ export async function registerRoutes(
       await v1.register(translationRoutes, { prefix: '/translate' })
       // Sprint 4b: tenant locale routes (UI i18n generation + retrieval)
       await v1.register(localeRoutes, { prefix: '/tenant/locale' })
+      // Sprint 4c: prompt locale routes (prompt translation + retrieval)
+      await v1.register(promptLocaleRoutes, { prefix: '/tenant/prompts' })
     },
     { prefix: '/api/v1' }
   )
