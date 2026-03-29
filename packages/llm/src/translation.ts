@@ -247,16 +247,28 @@ export class TranslationService {
       )
     }
 
-    // Flatten to "promptId::title" / "promptId::description"
-    const flat: Record<string, string> = {}
-    for (const p of prompts) {
-      flat[`${p.id}::title`] = p.title
-      if (p.description) {
-        flat[`${p.id}::description`] = p.description
-      }
+    // Chunk prompts into groups of 10 (= 20 flat keys per chunk)
+    // Prevents qwen2.5:7b from silently dropping entries on large payloads
+    const PROMPT_CHUNK_SIZE = 10
+    const promptChunks: Array<typeof prompts> = []
+    for (let i = 0; i < prompts.length; i += PROMPT_CHUNK_SIZE) {
+      promptChunks.push(prompts.slice(i, i + PROMPT_CHUNK_SIZE))
     }
 
-    const translated = await this.translateJson(flat, toLang)
+    const promptChunkPromises = promptChunks.map(chunk => {
+      const flat: Record<string, string> = {}
+      for (const p of chunk) {
+        flat[`${p.id}::title`] = p.title
+        if (p.description) {
+          flat[`${p.id}::description`] = p.description
+        }
+      }
+      return this._translateJsonChunk(flat, toLang)
+    })
+
+    const chunkResults = await Promise.all(promptChunkPromises)
+    const translated: Record<string, string> = {}
+    for (const result of chunkResults) Object.assign(translated, result)
 
     // Reconstruct
     const result: Record<string, { title: string; description: string }> = {}
@@ -270,16 +282,42 @@ export class TranslationService {
   }
 
   /**
-   * translateJson — Sprint 4b (F-04).
-   * Translates an entire flat JSON object of UI strings in a single LLM call.
-   * Returns a translated Record<string, string> with the same keys.
-   * Falls back to the original messages on parse error.
+   * translateJson — Sprint 4b (F-04), chunked in Sprint 4c fix.
+   * Splits input into chunks of 20 key-value pairs and translates sequentially.
+   * Merges results back into a single Record<string, string>.
+   * Prevents qwen2.5:7b from silently dropping entries on large payloads.
    */
   async translateJson(
     messages: Record<string, string>,
     toLang: string
   ): Promise<Record<string, string>> {
     if (toLang === 'en') return messages
+
+    const CHUNK_SIZE = 20
+    const entries = Object.entries(messages)
+    const chunks: [string, string][][] = []
+    for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+      chunks.push(entries.slice(i, i + CHUNK_SIZE))
+    }
+
+    const chunkPromises = chunks.map(chunk =>
+      this._translateJsonChunk(Object.fromEntries(chunk), toLang)
+    )
+    const chunkResults = await Promise.all(chunkPromises)
+    const results: Record<string, string> = {}
+    for (const result of chunkResults) Object.assign(results, result)
+    return results
+  }
+
+  /**
+   * _translateJsonChunk — internal.
+   * Translates a small flat JSON object (≤20 keys) in a single LLM call.
+   * Falls back to the original messages on parse error.
+   */
+  private async _translateJsonChunk(
+    messages: Record<string, string>,
+    toLang: string
+  ): Promise<Record<string, string>> {
     try {
       const enJson = JSON.stringify(messages, null, 2)
       const response = await this.client.chat({
