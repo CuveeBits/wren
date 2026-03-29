@@ -75,6 +75,13 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
       })
 
       if (existing) {
+        // Catch-up: if UI translation cached but no prompt translations yet, trigger them
+        const promptLocaleCount = await db.tenantPromptLocale.count({
+          where: { tenantId, locale }
+        })
+        if (promptLocaleCount === 0) {
+          triggerPromptTranslation(tenantId, locale).catch(() => {})
+        }
         return reply.status(200).send({
           data: existing.translations,
           cached: true,
