@@ -4,6 +4,7 @@
  * PromptCard — displays a prompt template in the library browse grid.
  */
 import Link from 'next/link'
+import { useTranslations } from '@/i18n/translations-context'
 import { Clock } from 'lucide-react'
 import { Badge, cn } from '@wren/ui'
 
@@ -37,6 +38,7 @@ export function PromptCard({
   estimatedMinutesSaved,
   tenantSlug,
 }: PromptCardProps) {
+  const t = useTranslations()
   return (
     <Link
       href={`/${tenantSlug}/prompts/${id}`}
@@ -75,7 +77,7 @@ export function PromptCard({
       {estimatedMinutesSaved !== null && estimatedMinutesSaved > 0 && (
         <div className="flex items-center gap-1 text-xs text-muted-foreground mt-auto">
           <Clock className="h-3 w-3" />
-          <span>Saves {estimatedMinutesSaved} min</span>
+          <span>{t('prompts.savesMins').replace('{count}', String(estimatedMinutesSaved))}</span>
         </div>
       )}
     </Link>

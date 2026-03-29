@@ -12,6 +12,7 @@ import { X, Search, Check, BookOpen, Loader2 } from 'lucide-react'
 import { Button, Input, Skeleton, cn } from '@wren/ui'
 import { listKbDocuments, type KbDocument } from '@/components/kb/api'
 import { attachDocuments } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface KBAttachmentPickerProps {
   conversationId: string
@@ -35,6 +36,7 @@ export function KBAttachmentPicker({
   onClose,
   onAttached,
 }: KBAttachmentPickerProps) {
+  const t = useTranslations()
   const [query, setQuery] = React.useState('')
   const [documents, setDocuments] = React.useState<KbDocument[]>([])
   const [selected, setSelected] = React.useState<Set<string>>(new Set(alreadyAttachedIds))
@@ -140,7 +142,7 @@ export function KBAttachmentPicker({
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search documents…"
+              placeholder={t('chat.searchDocuments')}
               className="h-8 pl-8 text-sm"
               autoFocus
             />

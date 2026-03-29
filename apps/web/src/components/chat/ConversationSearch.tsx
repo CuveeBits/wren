@@ -9,6 +9,7 @@
 import * as React from 'react'
 import { Search, X } from 'lucide-react'
 import { Input, cn } from '@wren/ui'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface ConversationSearchProps {
   onSearch: (q: string) => void
@@ -25,6 +26,7 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 export function ConversationSearch({ onSearch, className }: ConversationSearchProps) {
+  const t = useTranslations()
   const [value, setValue] = React.useState('')
   const debounced = useDebounce(value, 300)
 
@@ -38,7 +40,7 @@ export function ConversationSearch({ onSearch, className }: ConversationSearchPr
       <Input
         value={value}
         onChange={(e) => setValue(e.target.value)}
-        placeholder="Search conversations…"
+        placeholder={t('chat.searchConversations')}
         className="h-8 pl-8 pr-8 text-sm"
       />
       {value && (

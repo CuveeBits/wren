@@ -11,6 +11,7 @@
  *
  * Sprint 1 — Task 1.4
  * Sprint 4b — UI localisation
+ * Sprint 4c — fix partial re-render: hold cards until translations loaded
  */
 import * as React from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -59,6 +60,9 @@ export default function PromptsPage() {
   const [promptTranslations, setPromptTranslations] = React.useState<
     Record<string, { title: string; description: string | null }>
   >({})
+  // Sprint 4c fix: don't render cards until translations are settled
+  // For English locale this is instantly true; for others, wait for the fetch.
+  const [translationsLoaded, setTranslationsLoaded] = React.useState(locale === 'en')
 
   const [departments, setDepartments] = React.useState<string[]>([])
   const [prompts, setPrompts] = React.useState<PromptSummary[]>([])
@@ -88,8 +92,11 @@ export default function PromptsPage() {
   React.useEffect(() => {
     if (!locale || locale === 'en') {
       setPromptTranslations({})
+      setTranslationsLoaded(true)
       return
     }
+    // Reset loaded flag while re-fetching
+    setTranslationsLoaded(false)
     const qs = new URLSearchParams({ tenantSlug })
     fetch(`${API_BASE}/api/v1/tenant/prompts/locale/${locale}?${qs}`, { credentials: 'omit' })
       .then((r) => {
@@ -100,6 +107,9 @@ export default function PromptsPage() {
         if (j?.data) setPromptTranslations(j.data as Record<string, { title: string; description: string | null }>)
       })
       .catch(console.error)
+      .finally(() => {
+        setTranslationsLoaded(true)
+      })
   }, [locale, tenantSlug])
 
   // Fetch departments on mount
@@ -188,6 +198,9 @@ export default function PromptsPage() {
     </ul>
   )
 
+  // Show spinner when either prompts or translations are loading
+  const showGrid = !isLoading && translationsLoaded
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* ── Header ── */}
@@ -241,7 +254,7 @@ export default function PromptsPage() {
 
         {/* Grid */}
         <div className="flex-1 space-y-6">
-          {isLoading ? (
+          {!showGrid ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-3 rounded-xl border border-border p-5">

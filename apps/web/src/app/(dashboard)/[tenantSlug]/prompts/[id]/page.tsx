@@ -7,6 +7,7 @@
  * Right panel: streaming AI result (react-markdown), copy, retry
  *
  * Sprint 1 — Task 1.5
+ * Sprint 4c — translated prompt title/description + all UI strings via t()
  */
 import * as React from 'react'
 import { useParams, useRouter } from 'next/navigation'
@@ -22,7 +23,7 @@ import type { CitationItem } from '@/components/kb/CitationPanel'
 import { SaveToKbToggle } from '@/components/kb/SaveToKbToggle'
 import { KbTagBadge } from '@/components/kb/KbTagBadge'
 import { getKbContext, getKbDocument } from '@/components/kb/api'
-import { useLocale } from '@/i18n/translations-context'
+import { useLocale, useTranslations } from '@/i18n/translations-context'
 import type { KbContextChunk, KbDocument } from '@/components/kb/api'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -69,12 +70,17 @@ const DIFFICULTY_VARIANT: Record<
 export default function PromptDetailPage() {
   const params = useParams<{ tenantSlug: string; id: string }>()
   const locale = useLocale()
+  const t = useTranslations()
   const { tenantSlug, id } = params
   const router = useRouter()
 
   const [prompt, setPrompt] = React.useState<Prompt | null>(null)
   const [isLoadingPrompt, setIsLoadingPrompt] = React.useState(true)
   const [notFound, setNotFound] = React.useState(false)
+
+  // Sprint 4c: translated title/description for the current locale
+  const [translatedTitle, setTranslatedTitle] = React.useState<string | null>(null)
+  const [translatedDescription, setTranslatedDescription] = React.useState<string | null | undefined>(undefined)
 
   // Result panel state
   const [result, setResult] = React.useState('')
@@ -106,6 +112,31 @@ export default function PromptDetailPage() {
       .catch(console.error)
       .finally(() => setIsLoadingPrompt(false))
   }, [id])
+
+  // Sprint 4c: fetch translated title/description for non-English locales
+  React.useEffect(() => {
+    setTranslatedTitle(null)
+    setTranslatedDescription(undefined)
+
+    if (!locale || locale === 'en') return
+
+    const qs = new URLSearchParams({ tenantSlug })
+    fetch(`${API_BASE}/api/v1/tenant/prompts/locale/${locale}?${qs}`, { credentials: 'omit' })
+      .then((r) => {
+        if (r.ok) return r.json()
+        return null
+      })
+      .then((j) => {
+        if (j?.data) {
+          const tx = (j.data as Record<string, { title: string; description: string | null }>)[id]
+          if (tx) {
+            setTranslatedTitle(tx.title)
+            setTranslatedDescription(tx.description)
+          }
+        }
+      })
+      .catch(console.error)
+  }, [locale, tenantSlug, id])
 
   // Execute prompt — streams SSE
   async function execute(variables: Record<string, string>) {
@@ -147,7 +178,7 @@ export default function PromptDetailPage() {
       })
 
       if (!res.ok || !res.body) {
-        setStreamError(`Request failed: ${res.status} ${res.statusText}`)
+        setStreamError(`${t('prompt.errorFailed')} (${res.status})`)
         setIsStreaming(false)
         return
       }
@@ -186,7 +217,7 @@ export default function PromptDetailPage() {
                 })
               }
             } else if (event.type === 'error') {
-              setStreamError(event.message ?? 'Unknown error')
+              setStreamError(event.message ?? t('common.error'))
               setIsStreaming(false)
             }
           } catch {
@@ -195,7 +226,7 @@ export default function PromptDetailPage() {
         }
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Network error'
+      const message = err instanceof Error ? err.message : t('common.error')
       setStreamError(message)
       setIsStreaming(false)
       setToast({ tone: 'error', message })
@@ -231,6 +262,10 @@ export default function PromptDetailPage() {
       .catch(console.error)
   }, [attachedDocumentIds])
 
+  // Resolved title/description (translated if available, else original)
+  const displayTitle = translatedTitle ?? prompt?.title ?? ''
+  const displayDescription = translatedDescription !== undefined ? translatedDescription : prompt?.description
+
   // ── Loading / not found states
   if (isLoadingPrompt) {
     return (
@@ -243,9 +278,9 @@ export default function PromptDetailPage() {
   if (notFound || !prompt) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-20 text-center">
-        <p className="text-lg font-medium">Prompt not found</p>
+        <p className="text-lg font-medium">{t('prompt.notFound')}</p>
         <Button variant="outline" onClick={() => router.push(`/${tenantSlug}/prompts`)}>
-          Back to Library
+          {t('common.back')}
         </Button>
       </div>
     )
@@ -259,7 +294,7 @@ export default function PromptDetailPage() {
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Library
+        {t('prompt.back')}
       </Link>
 
       {/* ── Two-column layout ── */}
@@ -277,20 +312,20 @@ export default function PromptDetailPage() {
               </Badge>
               {prompt.estimatedMinutesSaved && (
                 <Badge variant="outline">
-                  ⏱ Saves {prompt.estimatedMinutesSaved} min
+                  ⏱ {t('prompts.savesMins').replace('{count}', String(prompt.estimatedMinutesSaved))}
                 </Badge>
               )}
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">{prompt.title}</h1>
-            {prompt.description && (
-              <p className="text-sm text-muted-foreground">{prompt.description}</p>
+            <h1 className="text-2xl font-bold tracking-tight">{displayTitle}</h1>
+            {displayDescription && (
+              <p className="text-sm text-muted-foreground">{displayDescription}</p>
             )}
           </div>
 
           {/* Form */}
           <div className="rounded-xl border border-border bg-card p-6">
             <p className="mb-4 text-sm font-medium text-muted-foreground uppercase tracking-wider">
-              Fill in the form
+              {t('prompt.fillForm')}
             </p>
             <div className="mb-4 space-y-3">
               <div className="flex flex-wrap gap-2">
@@ -300,7 +335,7 @@ export default function PromptDetailPage() {
                   onClick={() => setAttachModalOpen(true)}
                 >
                   <Paperclip className="h-4 w-4" />
-                  Attach from KB
+                  {t('chat.attachKb')}
                 </Button>
                 {attachedDocuments.map((document) => (
                   <button
@@ -339,14 +374,14 @@ export default function PromptDetailPage() {
                 <div className="rounded-full bg-muted p-4">
                   <span className="text-3xl">✨</span>
                 </div>
-                <p className="text-sm font-medium">Fill in the form and click Generate</p>
-                <p className="text-xs">Your AI result will appear here in real time.</p>
+                <p className="text-sm font-medium">{t('prompt.resultEmpty')}</p>
+                <p className="text-xs">{t('prompt.resultEmptyHint')}</p>
               </div>
             )}
 
             {streamError && (
               <div className="rounded-lg bg-destructive/10 border border-destructive/30 p-4 text-sm text-destructive">
-                <p className="font-medium mb-1">Error</p>
+                <p className="font-medium mb-1">{t('common.error')}</p>
                 <p>{streamError}</p>
               </div>
             )}
@@ -368,7 +403,7 @@ export default function PromptDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               {tokenCount !== null && (
                 <p className="text-xs text-muted-foreground">
-                  {tokenCount.toLocaleString()} tokens used
+                  {tokenCount.toLocaleString()} {t('prompt.tokens')}
                 </p>
               )}
               <div className="flex gap-2">
@@ -378,7 +413,7 @@ export default function PromptDetailPage() {
                   onClick={handleRetry}
                 >
                   <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                  Try again
+                  {t('prompt.retry')}
                 </Button>
                 <Button
                   variant="outline"
@@ -386,9 +421,9 @@ export default function PromptDetailPage() {
                   onClick={handleCopy}
                 >
                   {copied ? (
-                    <><Check className="mr-1.5 h-3.5 w-3.5" />Copied!</>
+                    <><Check className="mr-1.5 h-3.5 w-3.5" />{t('prompt.copied')}</>
                   ) : (
-                    <><Copy className="mr-1.5 h-3.5 w-3.5" />Copy</>
+                    <><Copy className="mr-1.5 h-3.5 w-3.5" />{t('prompt.copy')}</>
                   )}
                 </Button>
               </div>
@@ -398,7 +433,7 @@ export default function PromptDetailPage() {
           {streamError && lastVariables && (
             <Button variant="outline" size="sm" onClick={handleRetry} className="w-fit">
               <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              Retry
+              {t('common.retry')}
             </Button>
           )}
         </div>
