@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Search } from 'lucide-react'
 import { Input, cn } from '@wren/ui'
 import type { KbSearchMode } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 export interface KbSearchValue {
   query: string
@@ -20,9 +21,11 @@ interface KbSearchBarProps {
 export function KbSearchBar({
   value,
   onChange,
-  placeholder = 'Search documents…',
+  placeholder,
   className,
 }: KbSearchBarProps) {
+  const t = useTranslations()
+  const resolvedPlaceholder = placeholder ?? t('kb.searchPlaceholder')
   const [query, setQuery] = React.useState(value.query)
 
   React.useEffect(() => {
@@ -47,7 +50,7 @@ export function KbSearchBar({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           className="pl-9"
         />
       </div>

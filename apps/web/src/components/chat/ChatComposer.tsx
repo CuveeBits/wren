@@ -6,13 +6,14 @@
  * Multiline textarea (shift+enter = newline, enter = submit).
  * Submit disabled while SSE stream is active.
  * Shows attached doc count pill with KB picker trigger.
+ * Sprint 4b: fully localised via useTranslations
  */
 import * as React from 'react'
 import { Send, Paperclip, X, Loader2 } from 'lucide-react'
 import { Button, cn } from '@wren/ui'
 import type { KbDocument } from '@/components/kb/api'
-// Sprint 4: translation imports
 import { LANGUAGE_AUTO } from '@/lib/i18n-chat'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface ChatComposerProps {
   onSend: (content: string) => void
@@ -22,7 +23,6 @@ interface ChatComposerProps {
   onDetachDoc?: (docId: string) => void
   disabled?: boolean
   placeholder?: string
-  // Sprint 4: translation props
   translationEnabled?: boolean
   selectedLanguage?: string
   onLanguageChange?: (code: string) => void
@@ -35,13 +35,16 @@ export function ChatComposer({
   onOpenPicker,
   onDetachDoc,
   disabled,
-  placeholder = 'Ask anything…',
+  placeholder,
   translationEnabled = false,
   selectedLanguage = LANGUAGE_AUTO,
   onLanguageChange,
 }: ChatComposerProps) {
+  const t = useTranslations()
   const [value, setValue] = React.useState('')
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
+
+  const resolvedPlaceholder = placeholder ?? t('chat.defaultPrompt1').replace('?', '\u2026').slice(0, 20) + '\u2026'
 
   // Auto-resize textarea
   React.useEffect(() => {
@@ -63,7 +66,6 @@ export function ChatComposer({
     if (!content || isStreaming || disabled) return
     onSend(content)
     setValue('')
-    // Reset height
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto'
     }
@@ -107,8 +109,8 @@ export function ChatComposer({
           className="h-9 w-9 shrink-0 mb-0.5"
           onClick={onOpenPicker}
           disabled={disabled}
-          aria-label="Attach KB documents"
-          title="Attach KB documents"
+          aria-label={t('chat.attachKb')}
+          title={t('chat.attachKb')}
         >
           <Paperclip className="h-4 w-4" />
           {attachedDocs.length > 0 && (
@@ -125,7 +127,7 @@ export function ChatComposer({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isStreaming ? 'Responding…' : placeholder}
+            placeholder={isStreaming ? t('chat.responding') : resolvedPlaceholder}
             disabled={isStreaming || disabled}
             rows={1}
             className={cn(
@@ -134,7 +136,7 @@ export function ChatComposer({
               'disabled:opacity-50 disabled:cursor-not-allowed',
               'min-h-[40px] max-h-[200px] overflow-y-auto'
             )}
-            aria-label="Message input"
+            aria-label={t('chat.messageInput')}
           />
         </div>
 
@@ -145,8 +147,8 @@ export function ChatComposer({
           className="h-9 w-9 shrink-0 mb-0.5"
           onClick={submit}
           disabled={!canSend}
-          aria-label="Send message"
-          title="Send message"
+          aria-label={t('chat.sendMessage')}
+          title={t('chat.sendMessage')}
         >
           {isStreaming ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -158,10 +160,9 @@ export function ChatComposer({
 
       <div className="mt-1.5 flex items-center justify-between px-0.5">
         <p className="text-[10px] text-muted-foreground">
-          Enter to send · Shift+Enter for newline
+          {t('chat.enterHint')}
         </p>
       </div>
     </div>
   )
 }
-

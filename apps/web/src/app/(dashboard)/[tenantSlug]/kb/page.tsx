@@ -7,6 +7,7 @@ import { KbCollectionTree } from '@/components/kb/KbCollectionTree'
 import { KbDocumentCard } from '@/components/kb/KbDocumentCard'
 import { KbSearchBar, type KbSearchValue } from '@/components/kb/KbSearchBar'
 import { KbUploadDropzone } from '@/components/kb/KbUploadDropzone'
+import { useTranslations } from '@/i18n/translations-context'
 import {
   createKbCollection,
   deleteKbCollection,
@@ -19,6 +20,7 @@ import {
 
 export default function KbBrowsePage() {
   const { tenantSlug } = useParams<{ tenantSlug: string }>()
+  const t = useTranslations()
 
   const [collections, setCollections] = React.useState<KbCollection[]>([])
   const [documents, setDocuments] = React.useState<KbDocument[]>([])
@@ -37,11 +39,11 @@ export default function KbBrowsePage() {
       setCollections(await listKbCollections())
     } catch (error) {
       setCollections([])
-      setCollectionsError(error instanceof Error ? error.message : 'Failed to load collections.')
+      setCollectionsError(error instanceof Error ? error.message : t('kb.failedLoadCollections'))
     } finally {
       setIsLoadingCollections(false)
     }
-  }, [])
+  }, [t])
 
   const loadDocuments = React.useCallback(async () => {
     setIsLoadingDocuments(true)
@@ -56,11 +58,11 @@ export default function KbBrowsePage() {
       )
     } catch (error) {
       setDocuments([])
-      setDocumentsError(error instanceof Error ? error.message : 'Failed to load documents.')
+      setDocumentsError(error instanceof Error ? error.message : t('kb.failedLoadDocuments'))
     } finally {
       setIsLoadingDocuments(false)
     }
-  }, [search.query, search.mode, selectedCollectionId])
+  }, [search.query, search.mode, selectedCollectionId, t])
 
   React.useEffect(() => {
     void loadCollections()
@@ -85,7 +87,7 @@ export default function KbBrowsePage() {
       setCollections((current) => current.map((collection) => (collection.id === optimistic.id ? created : collection)))
     } catch (error) {
       setCollections((current) => current.filter((collection) => collection.id !== optimistic.id))
-      setActionError(error instanceof Error ? error.message : 'Failed to create collection.')
+      setActionError(error instanceof Error ? error.message : t('kb.failedCreateCollection'))
     }
   }
 
@@ -97,7 +99,7 @@ export default function KbBrowsePage() {
       await renameKbCollection(id, name)
     } catch (error) {
       setCollections(previous)
-      setActionError(error instanceof Error ? error.message : 'Failed to rename collection.')
+      setActionError(error instanceof Error ? error.message : t('kb.failedRenameCollection'))
     }
   }
 
@@ -108,16 +110,16 @@ export default function KbBrowsePage() {
       await loadCollections()
       await loadDocuments()
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : 'Failed to delete collection.')
+      setActionError(error instanceof Error ? error.message : t('kb.failedDeleteCollection'))
     }
   }
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">Knowledge Base</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{t('kb.title')}</h1>
         <p className="text-sm text-muted-foreground">
-          Upload, organize, and browse company knowledge for prompt execution and retrieval.
+          {t('kb.subtitle')}
         </p>
       </div>
 
@@ -181,9 +183,9 @@ export default function KbBrowsePage() {
             </div>
           ) : documents.length === 0 ? (
             <div className="rounded-2xl border border-border bg-card px-6 py-16 text-center">
-              <h2 className="text-lg font-semibold">No documents found</h2>
+              <h2 className="text-lg font-semibold">{t('kb.noDocumentsTitle')}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
-                Try another search or upload a document to start building the KB for {tenantSlug}.
+                {t('kb.noDocumentsHint').replace('{tenant}', tenantSlug)}
               </p>
             </div>
           ) : (

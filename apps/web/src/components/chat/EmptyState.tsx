@@ -5,10 +5,12 @@
  *
  * Welcome copy + 3 suggested prompt starters.
  * Brand-aware if TenantChatSettings has welcome message.
+ * Sprint 4b: fully localised via useTranslations
  */
 import * as React from 'react'
 import { MessageSquare, Sparkles } from 'lucide-react'
 import { Button, cn } from '@wren/ui'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface EmptyStateProps {
   welcomeMessage?: string | null
@@ -17,13 +19,21 @@ interface EmptyStateProps {
   className?: string
 }
 
-const DEFAULT_PROMPTS = [
-  'What can you help me with?',
-  'Summarise the key documents in my knowledge base.',
-  'How do I get started with this platform?',
-]
-
 export function EmptyState({ welcomeMessage, tenantName, onPromptClick, className }: EmptyStateProps) {
+  const t = useTranslations()
+
+  const defaultPrompts = [
+    t('chat.defaultPrompt1'),
+    t('chat.defaultPrompt2'),
+    t('chat.defaultPrompt3'),
+  ]
+
+  const heading = welcomeMessage
+    ? welcomeMessage
+    : tenantName
+    ? t('chat.welcomeTo').replace('{name}', tenantName)
+    : t('chat.startConversation')
+
   return (
     <div className={cn('flex flex-1 flex-col items-center justify-center px-8 py-16 text-center', className)}>
       {/* Icon */}
@@ -32,25 +42,19 @@ export function EmptyState({ welcomeMessage, tenantName, onPromptClick, classNam
       </div>
 
       {/* Heading */}
-      <h2 className="text-xl font-semibold mb-2">
-        {welcomeMessage
-          ? welcomeMessage
-          : tenantName
-          ? `Welcome to ${tenantName}`
-          : 'Start a conversation'}
-      </h2>
+      <h2 className="text-xl font-semibold mb-2">{heading}</h2>
 
       <p className="text-sm text-muted-foreground max-w-sm mb-8">
-        Ask questions, explore your knowledge base, and get instant answers from your AI assistant.
+        {t('chat.emptyDesc')}
       </p>
 
       {/* Suggested prompts */}
       <div className="w-full max-w-sm flex flex-col gap-2">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
           <Sparkles className="h-3 w-3 inline mr-1" />
-          Try asking…
+          {t('chat.tryAsking')}
         </p>
-        {DEFAULT_PROMPTS.map((prompt) => (
+        {defaultPrompts.map((prompt) => (
           <Button
             key={prompt}
             variant="outline"

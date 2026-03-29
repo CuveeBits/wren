@@ -10,12 +10,14 @@
  *   - "Load more" pagination button
  *
  * Sprint 1 — Task 1.4
+ * Sprint 4b — UI localisation
  */
 import * as React from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 import { Button, Input, Skeleton, cn } from '@wren/ui'
 import { PromptCard } from '@/components/prompt/PromptCard'
+import { useTranslations } from '@/i18n/translations-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,6 +52,7 @@ export default function PromptsPage() {
   const { tenantSlug } = params
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations()
 
   const [departments, setDepartments] = React.useState<string[]>([])
   const [prompts, setPrompts] = React.useState<PromptSummary[]>([])
@@ -69,10 +72,10 @@ export default function PromptsPage() {
 
   // Sync URL params
   React.useEffect(() => {
-    const params = new URLSearchParams()
-    if (debouncedSearch) params.set('search', debouncedSearch)
-    if (activeDept) params.set('dept', activeDept)
-    router.replace(`?${params.toString()}`, { scroll: false })
+    const p = new URLSearchParams()
+    if (debouncedSearch) p.set('search', debouncedSearch)
+    if (activeDept) p.set('dept', activeDept)
+    router.replace(`?${p.toString()}`, { scroll: false })
   }, [debouncedSearch, activeDept, router])
 
   // Fetch departments on mount
@@ -139,7 +142,7 @@ export default function PromptsPage() {
               : 'hover:bg-accent hover:text-accent-foreground text-foreground'
           )}
         >
-          All Departments
+          {t('prompts.allDepartments')}
         </button>
       </li>
       {departments.map((dept) => (
@@ -166,16 +169,16 @@ export default function PromptsPage() {
       {/* ── Header ── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Prompt Library</h1>
+          <h1 className="text-2xl font-bold tracking-tight">{t('prompts.title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Browse production-ready AI templates and generate results in seconds.
+            {t('prompts.subtitle')}
           </p>
         </div>
         <div className="relative w-full sm:w-72">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search prompts…"
+            placeholder={t('prompts.searchPlaceholder')}
             className="pl-9"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -197,7 +200,7 @@ export default function PromptsPage() {
                 : 'border-border hover:bg-accent'
             )}
           >
-            {dept ? dept.replace(/-/g, ' ') : 'All'}
+            {dept ? dept.replace(/-/g, ' ') : t('prompts.all')}
           </button>
         ))}
       </div>
@@ -207,7 +210,7 @@ export default function PromptsPage() {
         {/* Sidebar (desktop) */}
         <aside className="hidden w-48 flex-shrink-0 md:block">
           <p className="mb-2 px-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            Departments
+            {t('prompts.departments')}
           </p>
           {deptList}
         </aside>
@@ -227,9 +230,9 @@ export default function PromptsPage() {
             </div>
           ) : prompts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center">
-              <p className="text-lg font-medium">No prompts found</p>
+              <p className="text-lg font-medium">{t('prompts.noResults')}</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Try adjusting your search or department filter.
+                {t('prompts.noResultsHint')}
               </p>
             </div>
           ) : (
@@ -251,7 +254,9 @@ export default function PromptsPage() {
                     onClick={handleLoadMore}
                     disabled={isLoadingMore}
                   >
-                    {isLoadingMore ? 'Loading…' : `Load more (${total - prompts.length} remaining)`}
+                    {isLoadingMore
+                      ? t('prompts.loading')
+                      : t('prompts.loadMore').replace('{count}', String(total - prompts.length))}
                   </Button>
                 </div>
               )}
