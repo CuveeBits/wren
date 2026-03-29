@@ -12,6 +12,16 @@ import { rateLimitPlugin } from './plugins/rateLimit'
 import { authPlugin } from './plugins/auth'
 import { registerRoutes } from './routes/index'
 
+process.on('uncaughtException', (err) => {
+  console.error('[api] Uncaught exception (process will NOT exit):', err)
+  // Do not call process.exit() — let the server keep running
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[api] Unhandled promise rejection (process will NOT exit):', reason)
+  // Do not call process.exit() — let the server keep running
+})
+
 async function start(): Promise<void> {
   const fastify = Fastify({
     logger: {

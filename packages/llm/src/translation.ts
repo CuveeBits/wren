@@ -27,7 +27,7 @@ const TRANSLATION_MODEL = 'translation'
 const TRANSLATION_TEMPERATURE = 0.1
 
 // Timeout per translation call (ms)
-const TRANSLATION_TIMEOUT_MS = 30_000
+const TRANSLATION_TIMEOUT_MS = 300_000
 
 // ─── Language detection ───────────────────────────────────────────────────────
 
