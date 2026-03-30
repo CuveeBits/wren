@@ -24,7 +24,7 @@ async function fetchMessages(locale: string, tenantSlug: string): Promise<Messag
     const res = await fetch(url, { cache: 'no-store' })
     if (!res.ok) return enMessages as Messages
     const j = (await res.json()) as { data?: Messages }
-    if (j?.data && typeof j.data === 'object') return j.data
+    if (j?.data && typeof j.data === 'object') return { ...(enMessages as Messages), ...(j.data as Messages) }
   } catch {
     // fall through to English
   }

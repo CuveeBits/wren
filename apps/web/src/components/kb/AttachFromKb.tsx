@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { FileText, Search, X } from 'lucide-react'
 import { Button, Checkbox, Input } from '@wren/ui'
+import { useTranslations } from '@/i18n/translations-context'
 import { listKbDocuments, type KbDocument } from './api'
 
 interface AttachFromKbProps {
@@ -18,6 +19,7 @@ export function AttachFromKb({
   onClose,
   onConfirm,
 }: AttachFromKbProps) {
+  const t = useTranslations()
   const [documents, setDocuments] = React.useState<KbDocument[]>([])
   const [query, setQuery] = React.useState('')
   const [localSelection, setLocalSelection] = React.useState<string[]>(selectedDocumentIds)
@@ -35,11 +37,11 @@ export function AttachFromKb({
         .then(setDocuments)
         .catch((nextError: unknown) => {
           setDocuments([])
-          setError(nextError instanceof Error ? nextError.message : 'Failed to load documents.')
+          setError(nextError instanceof Error ? nextError.message : t('kb.failedLoadDocuments'))
         })
     }, 250)
     return () => window.clearTimeout(timer)
-  }, [open, query])
+  }, [open, query, t])
 
   if (!open) return null
 
@@ -48,14 +50,14 @@ export function AttachFromKb({
       <div className="w-full max-w-3xl rounded-2xl border border-border bg-background shadow-xl">
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <div>
-            <h2 className="text-lg font-semibold">Attach from KB</h2>
-            <p className="text-sm text-muted-foreground">Select one or more documents to use as prompt context.</p>
+            <h2 className="text-lg font-semibold">{t('kb.attachFromKb')}</h2>
+            <p className="text-sm text-muted-foreground">{t('kb.attachDesc')}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             className="rounded-md p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label="Close modal"
+            aria-label={t('common.close')}
           >
             <X className="h-4 w-4" />
           </button>
@@ -68,7 +70,7 @@ export function AttachFromKb({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search documents…"
+              placeholder={t('chat.searchDocuments')}
               className="pl-9"
             />
           </div>
@@ -107,10 +109,10 @@ export function AttachFromKb({
                         </span>
                       </div>
                       <p className="text-sm text-muted-foreground">
-                        {document.collectionName ?? 'Unassigned'} • {document.fileName}
+                        {document.collectionName ?? t('kb.unassigned')} • {document.fileName}
                       </p>
                       <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                        {document.summary ?? 'No summary available yet.'}
+                        {document.summary ?? t('kb.noSummary')}
                       </p>
                     </div>
                   </label>
@@ -121,10 +123,10 @@ export function AttachFromKb({
         </div>
 
         <div className="flex items-center justify-between border-t border-border px-6 py-4">
-          <p className="text-sm text-muted-foreground">{localSelection.length} selected</p>
+          <p className="text-sm text-muted-foreground">{t('kb.selectedCount', { count: localSelection.length })}</p>
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+              {t('kb.cancel')}
             </Button>
             <Button
               type="button"
@@ -133,7 +135,7 @@ export function AttachFromKb({
                 onClose()
               }}
             >
-              Attach documents
+              {t('kb.attachDocuments')}
             </Button>
           </div>
         </div>
