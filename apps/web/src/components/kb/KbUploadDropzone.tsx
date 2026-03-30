@@ -67,7 +67,7 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
 
     setState('uploading')
     setProgress(0)
-    setMessage(`Uploading ${file.name}\u2026`)
+    setMessage(t('kb.upload.uploading').replace('{name}', file.name))
 
     try {
       const document = await uploadKbDocument(file, collectionId, setProgress)

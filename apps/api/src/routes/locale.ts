@@ -75,18 +75,29 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
       })
 
       if (existing) {
-        // Catch-up: if UI translation cached but no prompt translations yet, trigger them
-        const promptLocaleCount = await db.tenantPromptLocale.count({
-          where: { tenantId, locale }
-        })
-        if (promptLocaleCount === 0) {
-          triggerPromptTranslation(tenantId, locale).catch(() => {})
+        // Check for missing keys — en.json may have grown since last generation (Sprint 4b/4c)
+        const existingKeys = new Set(Object.keys(existing.translations as Record<string, string>))
+        const missingKeys = Object.keys(EN_MESSAGES).filter((k) => !existingKeys.has(k))
+
+        if (missingKeys.length > 0) {
+          // Stale cache: delete and fall through to fresh generation below
+          fastify.log.info({ tenantId, locale, missingCount: missingKeys.length }, '[locale] Stale UI translations — regenerating')
+          await db.tenantLocale.delete({ where: { id: existing.id } })
+          // Fall through to generation
+        } else {
+          // Cache is complete — return it
+          const promptLocaleCount = await db.tenantPromptLocale.count({
+            where: { tenantId, locale }
+          })
+          if (promptLocaleCount === 0) {
+            triggerPromptTranslation(tenantId, locale).catch(() => {})
+          }
+          return reply.status(200).send({
+            data: existing.translations,
+            cached: true,
+            locale,
+          })
         }
-        return reply.status(200).send({
-          data: existing.translations,
-          cached: true,
-          locale,
-        })
       }
 
       // Generate — single LLM call for entire JSON blob

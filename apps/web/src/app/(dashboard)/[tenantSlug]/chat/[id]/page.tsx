@@ -43,9 +43,11 @@ import type { KbDocument } from '@/components/kb/api'
 // Sprint 4: translation
 import { getChatSettings } from '@/components/chat/api'
 import { LANGUAGE_AUTO } from '@/lib/i18n-chat'
+import { useTranslations } from '@/i18n/translations-context'
 
 export default function ConversationPage() {
   const { tenantSlug, id } = useParams<{ tenantSlug: string; id: string }>()
+  const t = useTranslations()
   const searchParams = useSearchParams()
   const router = useRouter()
 
@@ -83,7 +85,7 @@ export default function ConversationPage() {
         }
       })
       .catch(() => {
-        if (!cancelled) setError('Failed to load conversation.')
+        if (!cancelled) setError(t('chat.failedLoadConversation'))
       })
       .finally(() => {
         if (!cancelled) setIsLoadingConv(false)
@@ -103,7 +105,7 @@ export default function ConversationPage() {
         if (!cancelled) setMessages(msgs)
       })
       .catch(() => {
-        if (!cancelled) setError('Failed to load messages.')
+        if (!cancelled) setError(t('chat.failedLoadMessages'))
       })
       .finally(() => {
         if (!cancelled) setIsLoadingMessages(false)
@@ -272,7 +274,7 @@ export default function ConversationPage() {
       const msgs = await listMessages(id)
       setMessages(msgs)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Retry failed')
+      setError(err instanceof Error ? err.message : t('chat.retryFailed'))
     }
   }
 
@@ -324,7 +326,7 @@ export default function ConversationPage() {
               disabled={isStreaming}
             >
               <RefreshCw className="h-3.5 w-3.5" />
-              Retry
+              {t('chat.retryButton')}
             </Button>
           )}
           {conversation && !isArchived && (
@@ -348,7 +350,7 @@ export default function ConversationPage() {
       {/* Archived banner */}
       {isArchived && (
         <div className="bg-muted/50 border-b border-border px-4 py-2 text-xs text-muted-foreground text-center">
-          This conversation is archived.
+          {t('chat.archived')}
         </div>
       )}
 

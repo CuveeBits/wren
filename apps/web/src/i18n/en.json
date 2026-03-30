@@ -95,6 +95,7 @@
   "kb.searchPlaceholder": "Search documents…",
   "kb.upload.title": "Upload a knowledge base document",
   "kb.upload.hint": "PDF, DOCX, TXT up to 20MB",
+  "kb.upload.uploading": "Uploading {name}…",
   "kb.upload.chooseFile": "Choose file",
   "kb.upload.dragDrop": "or drag and drop here",
   "kb.upload.complete": "Upload complete. Document is indexed and ready.",
@@ -150,5 +151,17 @@
   "chat.editTitle": "Click to edit title",
   "prompt.generateAi": "Generate with AI →",
   "prompt.saveToKb": "Save output to KB",
-  "prompt.saveToKbDesc": "Store the generated result as a knowledge base document after execution."
+  "prompt.saveToKbDesc": "Store the generated result as a knowledge base document after execution.",
+  "kb.attachFromKb": "Attach from KB",
+  "kb.attachDesc": "Select one or more documents to use as prompt context.",
+  "kb.attachDocuments": "Attach documents",
+  "kb.selectedCount": "{count} selected",
+  "chat.failedLoadConversation": "Failed to load conversation.",
+  "chat.failedLoadMessages": "Failed to load messages.",
+  "chat.retryFailed": "Retry failed",
+  "chat.retryButton": "Retry",
+  "chat.archived": "This conversation is archived.",
+  "kb.attachTitle": "Attach from KB",
+  "kb.attachSubtitle": "Select one or more documents to use as prompt context.",
+  "kb.attachSelected": "{count} selected"
 }
