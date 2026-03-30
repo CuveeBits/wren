@@ -150,9 +150,5 @@
   "chat.editTitle": "Click to edit title",
   "prompt.generateAi": "Generate with AI →",
   "prompt.saveToKb": "Save output to KB",
-  "prompt.saveToKbDesc": "Store the generated result as a knowledge base document after execution.",
-  "kb.attachFromKb": "Attach from KB",
-  "kb.attachDesc": "Select one or more documents to use as prompt context.",
-  "kb.attachDocuments": "Attach documents",
-  "kb.selectedCount": "{count} selected"
+  "prompt.saveToKbDesc": "Store the generated result as a knowledge base document after execution."
 }
