@@ -394,14 +394,15 @@ model TenantLocale {
 // ─── TENANT PROMPT LOCALE (Sprint 4c) ─────────────────────────────────────────
 
 model TenantPromptLocale {
-  id          String   @id @default(cuid())
-  tenantId    String
-  promptId    String
-  locale      String
-  title       String
-  description String?
-  generatedAt DateTime @default(now())
-  stale       Boolean  @default(false)
+  id                   String   @id @default(cuid())
+  tenantId             String
+  promptId             String
+  locale               String
+  title                String
+  description          String?
+  formSchemaTranslated Json?    // translated formSchema
+  generatedAt          DateTime @default(now())
+  stale                Boolean  @default(false)
 
   tenant Tenant @relation("TenantPromptLocales", fields: [tenantId], references: [id])
   prompt Prompt @relation(fields: [promptId], references: [id], onDelete: Cascade)

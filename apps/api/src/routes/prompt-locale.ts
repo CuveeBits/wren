@@ -45,7 +45,7 @@ export async function promptLocaleRoutes(fastify: FastifyInstance): Promise<void
       // Fetch all public prompts (global prompt library)
       const allPrompts = await db.prompt.findMany({
         where: { isPublic: true },
-        select: { id: true, title: true, description: true },
+        select: { id: true, title: true, description: true, formSchema: true },
       })
 
       if (allPrompts.length === 0) {
@@ -83,8 +83,8 @@ export async function promptLocaleRoutes(fastify: FastifyInstance): Promise<void
         if (!t) return Promise.resolve()
         return db.tenantPromptLocale.upsert({
           where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
-          create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, stale: false },
-          update: { title: t.title, description: t.description || null, stale: false, generatedAt: new Date() },
+          create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
+          update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
         })
       })
 
@@ -137,7 +137,7 @@ export async function promptLocaleRoutes(fastify: FastifyInstance): Promise<void
 
       const rows = await db.tenantPromptLocale.findMany({
         where: { tenantId, locale },
-        select: { promptId: true, title: true, description: true, stale: true },
+        select: { promptId: true, title: true, description: true, formSchemaTranslated: true, stale: true },
       })
 
       if (rows.length === 0) {
@@ -158,9 +158,9 @@ export async function promptLocaleRoutes(fastify: FastifyInstance): Promise<void
       }
 
       // Return current data (even if stale — best-effort)
-      const data: Record<string, { title: string; description: string | null }> = {}
+      const data: Record<string, { title: string; description: string | null; formSchemaTranslated: unknown | null }> = {}
       for (const row of rows) {
-        data[row.promptId] = { title: row.title, description: row.description }
+        data[row.promptId] = { title: row.title, description: row.description, formSchemaTranslated: row.formSchemaTranslated ?? null }
       }
 
       return reply.status(200).send({ data, locale, staleCount })
@@ -175,7 +175,7 @@ export async function promptLocaleRoutes(fastify: FastifyInstance): Promise<void
 async function triggerPromptReTranslation(tenantId: string, locale: string): Promise<void> {
   const allPrompts = await db.prompt.findMany({
     where: { isPublic: true },
-    select: { id: true, title: true, description: true },
+    select: { id: true, title: true, description: true, formSchema: true },
   })
 
   const staleRows = await db.tenantPromptLocale.findMany({
@@ -196,8 +196,8 @@ async function triggerPromptReTranslation(tenantId: string, locale: string): Pro
     if (!t) return Promise.resolve()
     return db.tenantPromptLocale.upsert({
       where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
-      create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, stale: false },
-      update: { title: t.title, description: t.description || null, stale: false, generatedAt: new Date() },
+      create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
+      update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
     })
   })
 

@@ -27,6 +27,7 @@ import {
   Label,
 } from '@wren/ui'
 import { Loader2 } from 'lucide-react'
+import { useTranslations } from '@/i18n/translations-context'
 
 // ─── JSON Schema types ────────────────────────────────────────────────────────
 
@@ -52,6 +53,7 @@ export interface JSONSchema {
 
 export interface PromptFormProps {
   schema: JSONSchema
+  formSchemaTranslated?: JSONSchema | null
   onSubmit: (values: Record<string, string>) => void
   isLoading?: boolean
 }
@@ -98,7 +100,8 @@ function buildZodSchema(
 
 // ─── PromptForm ───────────────────────────────────────────────────────────────
 
-export function PromptForm({ schema, onSubmit, isLoading = false }: PromptFormProps) {
+export function PromptForm({ schema, formSchemaTranslated, onSubmit, isLoading = false }: PromptFormProps) {
+  const t = useTranslations()
   const zodSchema = React.useMemo(() => buildZodSchema(schema), [schema])
   type FormValues = z.infer<typeof zodSchema>
 
@@ -111,7 +114,10 @@ export function PromptForm({ schema, onSubmit, isLoading = false }: PromptFormPr
     resolver: zodResolver(zodSchema),
   })
 
-  const fields = Object.entries(schema.properties)
+  // Use translated schema for rendering labels/placeholders if available,
+  // but always use original schema for Zod validation (field names must match)
+  const renderSchema = formSchemaTranslated ?? schema
+  const fields = Object.entries(renderSchema.properties)
 
   const handleFormSubmit = (values: FormValues) => {
     // Convert all values to strings for the API
@@ -237,10 +243,10 @@ export function PromptForm({ schema, onSubmit, isLoading = false }: PromptFormPr
         {isLoading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Generating…
+            {t('prompt.generating')}
           </>
         ) : (
-          'Generate with AI →'
+          t('prompt.generateAi')
         )}
       </Button>
     </form>

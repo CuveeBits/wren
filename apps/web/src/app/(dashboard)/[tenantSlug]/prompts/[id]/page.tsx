@@ -78,9 +78,10 @@ export default function PromptDetailPage() {
   const [isLoadingPrompt, setIsLoadingPrompt] = React.useState(true)
   const [notFound, setNotFound] = React.useState(false)
 
-  // Sprint 4c: translated title/description for the current locale
+  // Sprint 4c: translated title/description + formSchema for the current locale
   const [translatedTitle, setTranslatedTitle] = React.useState<string | null>(null)
   const [translatedDescription, setTranslatedDescription] = React.useState<string | null | undefined>(undefined)
+  const [translatedFormSchema, setTranslatedFormSchema] = React.useState<JSONSchema | null>(null)
 
   // Result panel state
   const [result, setResult] = React.useState('')
@@ -113,10 +114,11 @@ export default function PromptDetailPage() {
       .finally(() => setIsLoadingPrompt(false))
   }, [id])
 
-  // Sprint 4c: fetch translated title/description for non-English locales
+  // Sprint 4c: fetch translated title/description + formSchema for non-English locales
   React.useEffect(() => {
     setTranslatedTitle(null)
     setTranslatedDescription(undefined)
+    setTranslatedFormSchema(null)
 
     if (!locale || locale === 'en') return
 
@@ -128,10 +130,11 @@ export default function PromptDetailPage() {
       })
       .then((j) => {
         if (j?.data) {
-          const tx = (j.data as Record<string, { title: string; description: string | null }>)[id]
+          const tx = (j.data as Record<string, { title: string; description: string | null; formSchemaTranslated: JSONSchema | null }>)[id]
           if (tx) {
             setTranslatedTitle(tx.title)
             setTranslatedDescription(tx.description)
+            if (tx.formSchemaTranslated) setTranslatedFormSchema(tx.formSchemaTranslated)
           }
         }
       })
@@ -355,6 +358,7 @@ export default function PromptDetailPage() {
             </div>
             <PromptForm
               schema={prompt.formSchema}
+              formSchemaTranslated={translatedFormSchema}
               onSubmit={execute}
               isLoading={isStreaming}
             />

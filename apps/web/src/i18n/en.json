@@ -147,5 +147,8 @@
   "prompt.resultEmptyHint": "Your AI result will appear here in real time.",
   "chat.searchConversations": "Search conversations…",
   "chat.searchDocuments": "Search documents…",
-  "chat.editTitle": "Click to edit title"
+  "chat.editTitle": "Click to edit title",
+  "prompt.generateAi": "Generate with AI →",
+  "prompt.saveToKb": "Save output to KB",
+  "prompt.saveToKbDesc": "Store the generated result as a knowledge base document after execution."
 }

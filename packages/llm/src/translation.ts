@@ -231,24 +231,24 @@ export class TranslationService {
   }
 
   /**
-   * translatePrompts — Sprint 4c (F-02).
-   * Translates an array of prompts (id + title + description) in a single LLM call.
-   * Flattens to "promptId::title" / "promptId::description" keys, calls translateJson(),
-   * then reconstructs into nested output.
-   * Returns Record<promptId, { title: string, description: string }>.
+   * translatePrompts — Sprint 4c (F-02), extended in 4c-form-fields.
+   * Translates an array of prompts (id + title + description + formSchema field labels).
+   * Flattens all strings to keyed map, chunks into <=10 prompts, translates in parallel.
+   * Returns Record<promptId, { title, description, formSchemaTranslated }>.
+   *
+   * formSchema is expected in JSON Schema format: { properties: { [name]: { title, x-placeholder, description } } }
    */
   async translatePrompts(
-    prompts: Array<{ id: string; title: string; description?: string | null }>,
+    prompts: Array<{ id: string; title: string; description?: string | null; formSchema?: unknown }>,
     toLang: string
-  ): Promise<Record<string, { title: string; description: string }>> {
+  ): Promise<Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }>> {
     if (toLang === 'en') {
       return Object.fromEntries(
-        prompts.map((p) => [p.id, { title: p.title, description: p.description ?? '' }])
+        prompts.map((p) => [p.id, { title: p.title, description: p.description ?? '', formSchemaTranslated: null }])
       )
     }
 
-    // Chunk prompts into groups of 10 (= 20 flat keys per chunk)
-    // Prevents qwen2.5:7b from silently dropping entries on large payloads
+    // Chunk prompts into groups of 10 to prevent LLM from dropping entries on large payloads
     const PROMPT_CHUNK_SIZE = 10
     const promptChunks: Array<typeof prompts> = []
     for (let i = 0; i < prompts.length; i += PROMPT_CHUNK_SIZE) {
@@ -262,6 +262,17 @@ export class TranslationService {
         if (p.description) {
           flat[`${p.id}::description`] = p.description
         }
+        // Extract formSchema field strings for translation (JSON Schema format)
+        if (p.formSchema && typeof p.formSchema === 'object') {
+          const schema = p.formSchema as { properties?: Record<string, { title?: string; 'x-placeholder'?: string; description?: string }> }
+          if (schema.properties) {
+            for (const [fieldName, fieldProp] of Object.entries(schema.properties)) {
+              if (fieldProp.title) flat[`${p.id}::form::${fieldName}::title`] = fieldProp.title
+              if (fieldProp['x-placeholder']) flat[`${p.id}::form::${fieldName}::placeholder`] = fieldProp['x-placeholder']
+              if (fieldProp.description) flat[`${p.id}::form::${fieldName}::description`] = fieldProp.description
+            }
+          }
+        }
       }
       return this._translateJsonChunk(flat, toLang)
     })
@@ -270,12 +281,33 @@ export class TranslationService {
     const translated: Record<string, string> = {}
     for (const result of chunkResults) Object.assign(translated, result)
 
-    // Reconstruct
-    const result: Record<string, { title: string; description: string }> = {}
+    // Reconstruct results with translated formSchema
+    const result: Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }> = {}
     for (const p of prompts) {
+      // Build translated formSchema by deep-cloning and applying translated field strings
+      let formSchemaTranslated: unknown | null = null
+      if (p.formSchema && typeof p.formSchema === 'object') {
+        const schema = p.formSchema as { properties?: Record<string, Record<string, unknown>> }
+        if (schema.properties) {
+          const translatedProperties: Record<string, Record<string, unknown>> = {}
+          for (const [fieldName, fieldProp] of Object.entries(schema.properties)) {
+            const translatedProp = { ...fieldProp }
+            const tTitle = translated[`${p.id}::form::${fieldName}::title`]
+            const tPlaceholder = translated[`${p.id}::form::${fieldName}::placeholder`]
+            const tDesc = translated[`${p.id}::form::${fieldName}::description`]
+            if (tTitle) translatedProp['title'] = tTitle
+            if (tPlaceholder) translatedProp['x-placeholder'] = tPlaceholder
+            if (tDesc) translatedProp['description'] = tDesc
+            translatedProperties[fieldName] = translatedProp
+          }
+          formSchemaTranslated = { ...schema, properties: translatedProperties }
+        }
+      }
+
       result[p.id] = {
         title: translated[`${p.id}::title`] ?? p.title,
         description: translated[`${p.id}::description`] ?? p.description ?? '',
+        formSchemaTranslated,
       }
     }
     return result
@@ -365,8 +397,8 @@ export function getTranslationService(): TranslationService {
  * Use this for one-off calls without needing to manage a service instance.
  */
 export async function translatePrompts(
-  prompts: Array<{ id: string; title: string; description?: string | null }>,
+  prompts: Array<{ id: string; title: string; description?: string | null; formSchema?: unknown }>,
   toLang: string
-): Promise<Record<string, { title: string; description: string }>> {
+): Promise<Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }>> {
   return getTranslationService().translatePrompts(prompts, toLang)
 }
