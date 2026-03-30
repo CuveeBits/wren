@@ -248,38 +248,29 @@ export class TranslationService {
       )
     }
 
-    // Chunk prompts into groups of 10 to prevent LLM from dropping entries on large payloads
-    const PROMPT_CHUNK_SIZE = 10
-    const promptChunks: Array<typeof prompts> = []
-    for (let i = 0; i < prompts.length; i += PROMPT_CHUNK_SIZE) {
-      promptChunks.push(prompts.slice(i, i + PROMPT_CHUNK_SIZE))
-    }
-
-    const promptChunkPromises = promptChunks.map(chunk => {
+    // Process prompts sequentially, one at a time — avoids parallel LLM calls timing out on slow local models.
+    // Each prompt's strings (title + description + formSchema fields) are translated in a single LLM call.
+    const translated: Record<string, string> = {}
+    for (const p of prompts) {
       const flat: Record<string, string> = {}
-      for (const p of chunk) {
-        flat[`${p.id}::title`] = p.title
-        if (p.description) {
-          flat[`${p.id}::description`] = p.description
-        }
-        // Extract formSchema field strings for translation (JSON Schema format)
-        if (p.formSchema && typeof p.formSchema === 'object') {
-          const schema = p.formSchema as { properties?: Record<string, { title?: string; 'x-placeholder'?: string; description?: string }> }
-          if (schema.properties) {
-            for (const [fieldName, fieldProp] of Object.entries(schema.properties)) {
-              if (fieldProp.title) flat[`${p.id}::form::${fieldName}::title`] = fieldProp.title
-              if (fieldProp['x-placeholder']) flat[`${p.id}::form::${fieldName}::placeholder`] = fieldProp['x-placeholder']
-              if (fieldProp.description) flat[`${p.id}::form::${fieldName}::description`] = fieldProp.description
-            }
+      flat[`${p.id}::title`] = p.title
+      if (p.description) {
+        flat[`${p.id}::description`] = p.description
+      }
+      // Extract formSchema field strings for translation (JSON Schema format)
+      if (p.formSchema && typeof p.formSchema === 'object') {
+        const schema = p.formSchema as { properties?: Record<string, { title?: string; 'x-placeholder'?: string; description?: string }> }
+        if (schema.properties) {
+          for (const [fieldName, fieldProp] of Object.entries(schema.properties)) {
+            if (fieldProp.title) flat[`${p.id}::form::${fieldName}::title`] = fieldProp.title
+            if (fieldProp['x-placeholder']) flat[`${p.id}::form::${fieldName}::placeholder`] = fieldProp['x-placeholder']
+            if (fieldProp.description) flat[`${p.id}::form::${fieldName}::description`] = fieldProp.description
           }
         }
       }
-      return this._translateJsonChunk(flat, toLang)
-    })
-
-    const chunkResults = await Promise.all(promptChunkPromises)
-    const translated: Record<string, string> = {}
-    for (const result of chunkResults) Object.assign(translated, result)
+      const chunkResult = await this._translateJsonChunk(flat, toLang)
+      Object.assign(translated, chunkResult)
+    }
 
     // Reconstruct results with translated formSchema
     const result: Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }> = {}

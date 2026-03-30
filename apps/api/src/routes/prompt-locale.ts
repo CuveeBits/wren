@@ -66,32 +66,28 @@ export async function promptLocaleRoutes(fastify: FastifyInstance): Promise<void
         return reply.status(200).send({ translated: 0, skipped: alreadyTranslated.size, locale, cached: true })
       }
 
-      // Single LLM call for all prompts that need translation
+      // Translate sequentially — one prompt at a time to handle slow local models without timeout
       const svc = getTranslationService()
-      let translated: Record<string, { title: string; description: string }>
+      let translatedCount = 0
 
-      try {
-        translated = await svc.translatePrompts(toTranslate, locale)
-      } catch (err) {
-        fastify.log.error({ err, locale, tenantId }, '[F-02] translatePrompts failed')
-        return reply.status(503).send({ error: 'Service Unavailable', message: 'Translation service temporarily unavailable.' })
+      for (const p of toTranslate) {
+        try {
+          const result = await svc.translatePrompts([p], locale)
+          const t = result[p.id]
+          if (!t) continue
+          await db.tenantPromptLocale.upsert({
+            where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
+            create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
+            update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
+          })
+          translatedCount++
+        } catch (err) {
+          fastify.log.error({ err, locale, tenantId, promptId: p.id }, '[F-02] translatePrompts failed for prompt — skipping')
+        }
       }
 
-      // Upsert translated rows
-      const upserts = toTranslate.map((p) => {
-        const t = translated[p.id]
-        if (!t) return Promise.resolve()
-        return db.tenantPromptLocale.upsert({
-          where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
-          create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
-          update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
-        })
-      })
-
-      await Promise.all(upserts)
-
       return reply.status(200).send({
-        translated: toTranslate.length,
+        translated: translatedCount,
         skipped: alreadyTranslated.size,
         locale,
       })
@@ -189,17 +185,21 @@ async function triggerPromptReTranslation(tenantId: string, locale: string): Pro
   if (toTranslate.length === 0) return
 
   const svc = getTranslationService()
-  const translated = await svc.translatePrompts(toTranslate, locale)
 
-  const upserts = toTranslate.map((p) => {
-    const t = translated[p.id]
-    if (!t) return Promise.resolve()
-    return db.tenantPromptLocale.upsert({
-      where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
-      create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
-      update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
-    })
-  })
-
-  await Promise.all(upserts)
+  // Sequential — one prompt at a time so slow local models don't time out
+  for (const p of toTranslate) {
+    try {
+      const result = await svc.translatePrompts([p], locale)
+      const t = result[p.id]
+      if (!t) continue
+      await db.tenantPromptLocale.upsert({
+        where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
+        create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
+        update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
+      })
+    } catch (err) {
+      console.warn(`[F-05] Re-translation failed for prompt ${p.id} (${locale}):`, err)
+      // Continue with next prompt — don't abort the whole batch
+    }
+  }
 }

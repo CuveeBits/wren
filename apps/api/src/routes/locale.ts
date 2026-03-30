@@ -208,7 +208,7 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
 async function triggerPromptTranslation(tenantId: string, locale: string): Promise<void> {
   const allPrompts = await db.prompt.findMany({
     where: { isPublic: true },
-    select: { id: true, title: true, description: true },
+    select: { id: true, title: true, description: true, formSchema: true },
   })
 
   if (allPrompts.length === 0) return
@@ -224,17 +224,21 @@ async function triggerPromptTranslation(tenantId: string, locale: string): Promi
   if (toTranslate.length === 0) return
 
   const svc = getTranslationService()
-  const translated = await svc.translatePrompts(toTranslate, locale)
 
-  const upserts = toTranslate.map((p) => {
-    const t = translated[p.id]
-    if (!t) return Promise.resolve()
-    return db.tenantPromptLocale.upsert({
-      where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
-      create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, stale: false },
-      update: { title: t.title, description: t.description || null, stale: false, generatedAt: new Date() },
-    })
-  })
-
-  await Promise.all(upserts)
+  // Sequential — one prompt at a time so slow local models don't time out
+  for (const p of toTranslate) {
+    try {
+      const result = await svc.translatePrompts([p], locale)
+      const t = result[p.id]
+      if (!t) continue
+      await db.tenantPromptLocale.upsert({
+        where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
+        create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
+        update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
+      })
+    } catch (err) {
+      console.warn(`[F-03] Background prompt translation failed for prompt ${p.id} (${locale}):`, err)
+      // Continue with next prompt
+    }
+  }
 }
