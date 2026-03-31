@@ -157,12 +157,22 @@ After: "Tell Wren what you need. Give it your data. Get the document."
 
 ---
 
-## Open questions (to resolve before Sprint 5 brief is frozen)
+## Open questions — ANSWERED 2026-04-01
 
-1. **Data source for Sprint 5 demo** — SAP export (file upload) or live API? File upload is simpler to demo; API is more impressive. Start with file, build API path in Sprint 6?
-2. **Output format** — PDF generation or structured Markdown → download? PDF requires a renderer (puppeteer or similar). Markdown → PDF is a Sprint 5 scope decision.
-3. **WrenLore dependency** — does Sprint 5 require WrenLore to be live, or can Wren's existing KB (Sprint 2) serve as the template store for now?
-4. **Meiller-specific vs generic** — build this as a generic agentic flow that any tenant can use, or build the Meiller proposal flow specifically and generalise in Sprint 6?
+1. **Data source** — ✅ BOTH. SAP has parts with API and parts where the best we can do is file export/import. Sprint 5 must handle both paths: file upload AND API connector. Design the abstraction layer so both feed the same agent pipeline.
+
+2. **Output format** — ✅ PDF. Requires a renderer (puppeteer or similar). This is in scope for Sprint 5. Proposal on Meiller letterhead = PDF. Not markdown, not a chat reply.
+
+3. **WrenLore dependency** — ✅ WrenLore REQUIRED. Sprint 2 KB was built to feed the Prompt Library execution model, not as an enterprise knowledge layer. It cannot serve as the template/knowledge store for the agentic flow. WrenLore Sprint 0 must complete before Sprint 5 can start.
+
+4. **Meiller-specific vs generic** — ⏸ NOT DECIDED YET. Leo's honest answer: "I don't know yet." This is the one remaining open question before the brief is frozen.
+
+   Options when ready:
+   - **Meiller-specific first** — build the proposal flow for Meiller exactly, generalise in Sprint 6. Faster to demo, harder to sell to next client.
+   - **Generic first** — build a configurable agentic flow any tenant can use, Meiller is just the first config. Slower, but scales.
+   - **Hybrid** — build generic infrastructure, ship with Meiller config as the first tenant preset.
+
+   Recommendation when Leo decides: answer this before Forge is briefed, not after.
 
 ---
 
