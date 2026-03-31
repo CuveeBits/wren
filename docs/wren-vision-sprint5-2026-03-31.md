@@ -165,14 +165,17 @@ After: "Tell Wren what you need. Give it your data. Get the document."
 
 3. **WrenLore dependency** — ✅ WrenLore REQUIRED. Sprint 2 KB was built to feed the Prompt Library execution model, not as an enterprise knowledge layer. It cannot serve as the template/knowledge store for the agentic flow. WrenLore Sprint 0 must complete before Sprint 5 can start.
 
-4. **Meiller-specific vs generic** — ⏸ NOT DECIDED YET. Leo's honest answer: "I don't know yet." This is the one remaining open question before the brief is frozen.
+4. **Commercial + configuration model** — ✅ DECIDED: **We configure it. They use it.**
 
-   Options when ready:
-   - **Meiller-specific first** — build the proposal flow for Meiller exactly, generalise in Sprint 6. Faster to demo, harder to sell to next client.
-   - **Generic first** — build a configurable agentic flow any tenant can use, Meiller is just the first config. Slower, but scales.
-   - **Hybrid** — build generic infrastructure, ship with Meiller config as the first tenant preset.
+   Model borrowed from Codelisten/ParsEval: we absorb the complexity of extracting business logic (SAP fields, proposal workflow, templates, letterhead, approval flow), build it in for Meiller, they use the result without seeing the wiring. Power users (Klaus) maintain edge cases with our help. We stay as L3/L4 for bugs + future development.
 
-   Recommendation when Leo decides: answer this before Forge is briefed, not after.
+   **Commercial model:**
+   - Implementation fee — we configure it for them
+   - SaaS subscription — platform runs
+   - L3/L4 retainer — bugs, edge cases, support
+   - Development — future features and versions
+
+   **Sprint 5 implication:** Forge does NOT build a configuration UI. He builds the generic pipeline + the first Meiller preset. Hardcoded for Sprint 5, made configurable/maintainable in Sprint 6. No self-service config panel — that's not the product we're selling.
 
 ---
 
