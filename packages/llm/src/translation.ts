@@ -153,3 +153,129 @@ export async function translate(
     return text
   }
 }
+
+// ─── Sprint 4b: TranslationService class ─────────────────────────────────────
+
+/**
+ * TranslationService — Sprint 4b.
+ *
+ * Class-based wrapper around the existing translate() and detectLanguage() functions.
+ * Adds translateJson() for bulk UI string translation.
+ *
+ * ADR-005: all calls go through LiteLLM proxy.
+ * Rule 2: this file is inside @wren/llm — the only permitted LLM call site.
+ */
+import { createLiteLLMClient } from './client'
+
+export class TranslationService {
+  private client: ReturnType<typeof createLiteLLMClient>
+
+  constructor(config: { baseUrl: string; apiKey: string }) {
+    this.client = createLiteLLMClient(config)
+  }
+
+  async detectLanguage(text: string): Promise<string> {
+    if (!text || text.trim().length === 0) return 'en'
+    try {
+      const response = await this.client.chat({
+        model: TRANSLATION_MODEL,
+        tenantId: 'system',
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a language detection assistant. Respond ONLY with the ISO 639-1 language code (2 letters, lowercase). Examples: en, de, fr, cs, pl. Nothing else.',
+          },
+          {
+            role: 'user',
+            content: `What language is this text written in? Text: "${text.slice(0, 200)}"`,
+          },
+        ],
+        temperature: 0.1,
+        maxTokens: 5,
+      })
+      const code = (response.content ?? 'en')
+        .trim()
+        .toLowerCase()
+        .slice(0, 2)
+      return /^[a-z]{2}$/.test(code) ? code : 'en'
+    } catch {
+      return 'en'
+    }
+  }
+
+  async translate(text: string, fromLang: string, toLang: string): Promise<string> {
+    if (!text || text.trim().length === 0) return text
+    if (fromLang === toLang) return text
+    try {
+      const response = await this.client.chat({
+        model: TRANSLATION_MODEL,
+        tenantId: 'system',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional translator. Translate the following text from ${fromLang} to ${toLang}. Return ONLY the translated text, nothing else. Preserve formatting, line breaks, and markdown if present.`,
+          },
+          {
+            role: 'user',
+            content: text,
+          },
+        ],
+        temperature: 0.1,
+      })
+      const translated = response.content ?? ''
+      return translated.trim() || text
+    } catch {
+      return text
+    }
+  }
+
+  /**
+   * translateJson — Sprint 4b (F-04).
+   * Translates an entire flat JSON object of UI strings in a single LLM call.
+   * Returns a translated Record<string, string> with the same keys.
+   * Falls back to the original messages on parse error.
+   */
+  async translateJson(
+    messages: Record<string, string>,
+    toLang: string
+  ): Promise<Record<string, string>> {
+    if (toLang === 'en') return messages
+    try {
+      const enJson = JSON.stringify(messages, null, 2)
+      const response = await this.client.chat({
+        model: TRANSLATION_MODEL,
+        tenantId: 'system',
+        messages: [
+          {
+            role: 'system',
+            content: `You are a professional UI translator. You will receive a JSON object where each value is a UI string in English. Translate ALL values to ${toLang}. Return ONLY the valid JSON object with the same keys and translated values. Do NOT change the keys. Do NOT add any explanation or markdown fences. Return pure JSON only.`,
+          },
+          {
+            role: 'user',
+            content: enJson,
+          },
+        ],
+        temperature: 0.1,
+      })
+      const raw = (response.content ?? '').trim()
+      // Strip potential markdown code fences
+      const cleaned = raw.replace(/^```[a-z]*\n?/, '').replace(/\n?```$/, '')
+      return JSON.parse(cleaned) as Record<string, string>
+    } catch {
+      // Graceful degradation — return English on any error
+      return messages
+    }
+  }
+}
+
+let _instance: TranslationService | null = null
+
+export function getTranslationService(): TranslationService {
+  if (!_instance) {
+    const baseUrl = process.env['LITELLM_BASE_URL'] ?? 'http://localhost:4000'
+    const apiKey = process.env['LITELLM_API_KEY'] ?? 'sk-dev-master-key'
+    _instance = new TranslationService({ baseUrl, apiKey })
+  }
+  return _instance
+}

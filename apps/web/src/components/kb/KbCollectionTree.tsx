@@ -4,6 +4,7 @@ import * as React from 'react'
 import { ChevronRight, FolderTree, Pencil, Plus, Trash2 } from 'lucide-react'
 import { Button, Input, cn } from '@wren/ui'
 import type { KbCollection } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface KbCollectionTreeProps {
   collections: KbCollection[]
@@ -45,6 +46,7 @@ export function KbCollectionTree({
   onRename,
   onDelete,
 }: KbCollectionTreeProps) {
+  const t = useTranslations()
   const [draftName, setDraftName] = React.useState('')
   const [parentId, setParentId] = React.useState<string | null>(null)
   const [editingId, setEditingId] = React.useState<string | null>(null)
@@ -69,7 +71,7 @@ export function KbCollectionTree({
   }
 
   async function handleDelete(id: string) {
-    if (!window.confirm('Delete this collection? Documents will be moved to Unassigned.')) return
+    if (!window.confirm(t('kb.deleteCollectionConfirm'))) return
     await onDelete(id)
     if (selectedCollectionId === id) onSelect(null)
   }
@@ -163,11 +165,11 @@ export function KbCollectionTree({
             <Input
               value={draftName}
               onChange={(event) => setDraftName(event.target.value)}
-              placeholder="New collection"
+              placeholder={t('kb.newCollectionPlaceholder')}
               className="h-8"
             />
             <Button type="button" size="sm" onClick={() => void handleCreate()}>
-              Add
+              {t('kb.add')}
             </Button>
           </div>
         )}
@@ -185,7 +187,7 @@ export function KbCollectionTree({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-          Collections
+          {t('kb.collections')}
         </p>
         <Button
           type="button"
@@ -197,7 +199,7 @@ export function KbCollectionTree({
           }}
         >
           <Plus className="h-3.5 w-3.5" />
-          New
+          {t('kb.newCollection')}
         </Button>
       </div>
 
@@ -209,7 +211,7 @@ export function KbCollectionTree({
           selectedCollectionId === null ? 'bg-primary text-primary-foreground' : 'hover:bg-accent'
         )}
       >
-        All documents
+        {t('kb.allDocuments')}
       </button>
 
       {parentId === null && (
@@ -217,11 +219,11 @@ export function KbCollectionTree({
           <Input
             value={draftName}
             onChange={(event) => setDraftName(event.target.value)}
-            placeholder="New collection"
+            placeholder={t('kb.newCollectionPlaceholder')}
             className="h-8"
           />
           <Button type="button" size="sm" onClick={() => void handleCreate()}>
-            Add
+            {t('kb.add')}
           </Button>
         </div>
       )}

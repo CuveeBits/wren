@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { CheckCircle2, Loader2, UploadCloud, XCircle } from 'lucide-react'
 import { Button, cn } from '@wren/ui'
+import { useTranslations } from '@/i18n/translations-context'
 import {
   getKbDocumentStatus,
   uploadKbDocument,
@@ -18,12 +19,15 @@ interface KbUploadDropzoneProps {
 type UploadState = 'idle' | 'uploading' | 'processing' | 'ready' | 'error'
 
 export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneProps) {
+  const t = useTranslations()
   const [isDragging, setIsDragging] = React.useState(false)
   const [progress, setProgress] = React.useState(0)
   const [state, setState] = React.useState<UploadState>('idle')
-  const [message, setMessage] = React.useState('PDF, DOCX, TXT up to 20MB')
+  const [message, setMessage] = React.useState<string | null>(null)
   const [currentDocumentId, setCurrentDocumentId] = React.useState<string | null>(null)
   const inputRef = React.useRef<HTMLInputElement | null>(null)
+
+  const displayMessage = message ?? t('kb.upload.hint')
 
   React.useEffect(() => {
     if (!currentDocumentId || state !== 'processing') return
@@ -33,22 +37,22 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
         const status = await getKbDocumentStatus(currentDocumentId)
         if (status === 'ready') {
           setState('ready')
-          setMessage('Upload complete. Document is indexed and ready.')
+          setMessage(t('kb.upload.complete'))
           window.clearInterval(timer)
         } else if (status === 'error') {
           setState('error')
-          setMessage('Upload finished, but processing failed.')
+          setMessage(t('kb.upload.statusFailed'))
           window.clearInterval(timer)
         }
       } catch (error) {
         setState('error')
-        setMessage(error instanceof Error ? error.message : 'Failed to check document status.')
+        setMessage(error instanceof Error ? error.message : t('kb.upload.failed'))
         window.clearInterval(timer)
       }
     }, 2000)
 
     return () => window.clearInterval(timer)
-  }, [currentDocumentId, state])
+  }, [currentDocumentId, state, t])
 
   async function handleFiles(files: FileList | null) {
     const file = files?.[0]
@@ -63,7 +67,7 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
 
     setState('uploading')
     setProgress(0)
-    setMessage(`Uploading ${file.name}…`)
+    setMessage(`Uploading ${file.name}\u2026`)
 
     try {
       const document = await uploadKbDocument(file, collectionId, setProgress)
@@ -72,12 +76,12 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
       setState(document.status === 'ready' ? 'ready' : 'processing')
       setMessage(
         document.status === 'ready'
-          ? 'Upload complete. Document is indexed and ready.'
-          : 'Upload complete. Processing document…'
+          ? t('kb.upload.complete')
+          : t('kb.upload.processing')
       )
     } catch (error) {
       setState('error')
-      setMessage(error instanceof Error ? error.message : 'Upload failed.')
+      setMessage(error instanceof Error ? error.message : t('kb.upload.failed'))
     } finally {
       if (inputRef.current) inputRef.current.value = ''
     }
@@ -122,15 +126,15 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
         </div>
 
         <div className="space-y-1">
-          <h3 className="text-sm font-semibold">Upload a knowledge base document</h3>
-          <p className="text-xs text-muted-foreground">{message}</p>
+          <h3 className="text-sm font-semibold">{t('kb.upload.title')}</h3>
+          <p className="text-xs text-muted-foreground">{displayMessage}</p>
         </div>
 
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button type="button" variant="outline" onClick={() => inputRef.current?.click()}>
-            Choose file
+            {t('kb.upload.chooseFile')}
           </Button>
-          <p className="text-xs text-muted-foreground">or drag and drop here</p>
+          <p className="text-xs text-muted-foreground">{t('kb.upload.dragDrop')}</p>
         </div>
       </div>
 
@@ -146,7 +150,9 @@ export function KbUploadDropzone({ collectionId, onUploaded }: KbUploadDropzoneP
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            {state === 'processing' ? 'Polling status every 2 seconds…' : `${progress}% uploaded`}
+            {state === 'processing'
+              ? t('kb.upload.polling')
+              : t('kb.upload.progress').replace('{progress}', String(progress))}
           </p>
         </div>
       )}

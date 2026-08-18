@@ -2,15 +2,14 @@
 
 /**
  * C-03 (brief): NewConversationButton — creates a new conversation and navigates to it.
- *
- * Calls POST /api/v1/chat/conversations (S-01).
- * On success, navigates to /[tenantSlug]/chat/[id].
+ * Sprint 4b: localised via useTranslations
  */
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Loader2 } from 'lucide-react'
 import { Button } from '@wren/ui'
 import { createConversation } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface NewConversationButtonProps {
   tenantSlug: string
@@ -19,6 +18,7 @@ interface NewConversationButtonProps {
 
 export function NewConversationButton({ tenantSlug, onCreated }: NewConversationButtonProps) {
   const router = useRouter()
+  const t = useTranslations()
   const [isPending, setIsPending] = React.useState(false)
 
   async function handleClick() {
@@ -49,7 +49,7 @@ export function NewConversationButton({ tenantSlug, onCreated }: NewConversation
       ) : (
         <Plus className="h-4 w-4" />
       )}
-      New conversation
+      {t('chat.newConversation')}
     </Button>
   )
 }

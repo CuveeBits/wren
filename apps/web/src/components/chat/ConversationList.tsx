@@ -2,26 +2,22 @@
 
 /**
  * C-03: ConversationList — sidebar component
- *
- * Fetches GET /api/v1/chat/conversations (built by Spark S-01).
- * Groups conversations by recency: Today / This week / Older.
- * Shows title (or first 40 chars of userId as placeholder), last message snippet, timestamp.
- * Active conversation is highlighted.
+ * Sprint 4b: fully localised via useTranslations
  */
 import * as React from 'react'
 import Link from 'next/link'
 import { MessageSquare } from 'lucide-react'
 import { Skeleton, cn } from '@wren/ui'
 import { listConversations, type Conversation } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface ConversationListProps {
   tenantSlug: string
   activeId?: string
-  /** Refresh trigger — increment to force a re-fetch */
   refreshKey?: number
 }
 
-type Group = 'Today' | 'This week' | 'Older'
+type Group = 'today' | 'thisWeek' | 'older'
 
 function groupConversations(convos: Conversation[]): Record<Group, Conversation[]> {
   const now = new Date()
@@ -30,19 +26,19 @@ function groupConversations(convos: Conversation[]): Record<Group, Conversation[
   weekStart.setDate(weekStart.getDate() - 7)
 
   const groups: Record<Group, Conversation[]> = {
-    Today: [],
-    'This week': [],
-    Older: [],
+    today: [],
+    thisWeek: [],
+    older: [],
   }
 
   for (const c of convos) {
     const d = new Date(c.lastMessageAt ?? c.createdAt)
     if (d >= todayStart) {
-      groups.Today.push(c)
+      groups.today.push(c)
     } else if (d >= weekStart) {
-      groups['This week'].push(c)
+      groups.thisWeek.push(c)
     } else {
-      groups.Older.push(c)
+      groups.older.push(c)
     }
   }
   return groups
@@ -59,6 +55,7 @@ function formatTime(dateStr: string): string {
 }
 
 export function ConversationList({ tenantSlug, activeId, refreshKey }: ConversationListProps) {
+  const t = useTranslations()
   const [conversations, setConversations] = React.useState<Conversation[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -73,7 +70,7 @@ export function ConversationList({ tenantSlug, activeId, refreshKey }: Conversat
       })
       .catch((err) => {
         if (!cancelled)
-          setError(err instanceof Error ? err.message : 'Failed to load conversations')
+          setError(err instanceof Error ? err.message : t('chat.failedLoadConversations'))
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false)
@@ -81,7 +78,7 @@ export function ConversationList({ tenantSlug, activeId, refreshKey }: Conversat
     return () => {
       cancelled = true
     }
-  }, [refreshKey])
+  }, [refreshKey, t])
 
   if (isLoading) {
     return (
@@ -104,23 +101,28 @@ export function ConversationList({ tenantSlug, activeId, refreshKey }: Conversat
   if (conversations.length === 0) {
     return (
       <p className="p-4 text-xs text-muted-foreground text-center">
-        No conversations yet.
+        {t('chat.noConversations')}
       </p>
     )
   }
 
   const groups = groupConversations(conversations)
-  const groupOrder: Group[] = ['Today', 'This week', 'Older']
+
+  const groupConfig: Array<{ key: Group; label: string }> = [
+    { key: 'today', label: t('chat.today') },
+    { key: 'thisWeek', label: t('chat.thisWeek') },
+    { key: 'older', label: t('chat.older') },
+  ]
 
   return (
     <div className="flex flex-col gap-1 px-2 py-1 overflow-y-auto">
-      {groupOrder.map((group) => {
-        const items = groups[group]
+      {groupConfig.map(({ key, label }) => {
+        const items = groups[key]
         if (items.length === 0) return null
         return (
-          <div key={group}>
+          <div key={key}>
             <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {group}
+              {label}
             </p>
             {items.map((conv) => (
               <Link

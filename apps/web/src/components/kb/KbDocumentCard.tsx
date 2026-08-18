@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Clock3, FileText } from 'lucide-react'
 import { Badge, cn } from '@wren/ui'
 import { KbTagBadge } from './KbTagBadge'
 import type { KbDocument } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface KbDocumentCardProps {
   tenantSlug: string
@@ -39,9 +40,15 @@ function getFileTypeLabel(mimeType: string) {
 }
 
 export function KbDocumentCard({ tenantSlug, document }: KbDocumentCardProps) {
+  const t = useTranslations()
   const statusStyle = STATUS_STYLES[document.status]
   const StatusIcon = statusStyle.icon
   const fileType = getFileTypeLabel(document.mimeType)
+
+  const summary = document.summary ??
+    (document.status === 'processing'
+      ? t('kb.processing')
+      : document.errorMessage ?? t('kb.noSummary'))
 
   return (
     <Link
@@ -75,13 +82,10 @@ export function KbDocumentCard({ tenantSlug, document }: KbDocumentCardProps) {
           {document.title}
         </h3>
         <p className="text-xs text-muted-foreground">
-          {document.collectionName ?? 'Unassigned'} • {new Date(document.createdAt).toLocaleDateString()}
+          {document.collectionName ?? t('kb.unassigned')} &bull; {new Date(document.createdAt).toLocaleDateString()}
         </p>
         <p className="line-clamp-3 min-h-[3rem] text-xs text-muted-foreground">
-          {document.summary ??
-            (document.status === 'processing'
-              ? 'This document is still being parsed and chunked.'
-              : document.errorMessage ?? 'No summary available yet.')}
+          {summary}
         </p>
       </div>
 
@@ -90,7 +94,7 @@ export function KbDocumentCard({ tenantSlug, document }: KbDocumentCardProps) {
           document.tags.slice(0, 3).map((tag) => <KbTagBadge key={tag} tag={tag} />)
         ) : (
           <Badge variant="outline" className="rounded-full text-[11px] text-muted-foreground">
-            No tags
+            {t('kb.noTags')}
           </Badge>
         )}
       </div>

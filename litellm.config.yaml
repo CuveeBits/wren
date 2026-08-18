@@ -11,7 +11,7 @@ model_list:
 
   - model_name: wren-fast
     litellm_params:
-      model: ollama/qwen2.5:1.5b
+      model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
   - model_name: claude-haiku-4-5-20251001
@@ -26,7 +26,7 @@ model_list:
 
   - model_name: gpt-4o-mini
     litellm_params:
-      model: ollama/qwen2.5:1.5b
+      model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
   - model_name: gpt-4o
@@ -34,10 +34,10 @@ model_list:
       model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
-  # Sprint 4: translation alias — qwen2.5:1.5b for fast short-text translation tasks
+  # Sprint 4: translation alias — qwen2.5:7b for fast short-text translation tasks
   - model_name: translation
     litellm_params:
-      model: ollama/qwen2.5:1.5b
+      model: ollama/qwen2.5:7b
       api_base: http://172.17.0.1:11434
 
 general_settings:
