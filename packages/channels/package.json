@@ -19,6 +19,7 @@
     "lint": "eslint src/"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "@wren/config": "workspace:*",
     "typescript": "^5.4.0"
   }
