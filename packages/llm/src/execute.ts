@@ -146,7 +146,7 @@ export async function* executePrompt(
         stream: true,
       }),
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('LiteLLM request timed out after 120s')), 120_000)
+        setTimeout(() => reject(new Error('LiteLLM request timed out after 300s')), 300_000)
       ),
     ])
 

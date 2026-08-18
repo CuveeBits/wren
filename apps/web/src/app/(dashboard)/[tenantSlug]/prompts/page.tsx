@@ -11,13 +11,14 @@
  *
  * Sprint 1 — Task 1.4
  * Sprint 4b — UI localisation
+ * Sprint 4c — fix partial re-render: hold cards until translations loaded
  */
 import * as React from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Search } from 'lucide-react'
 import { Button, Input, Skeleton, cn } from '@wren/ui'
 import { PromptCard } from '@/components/prompt/PromptCard'
-import { useTranslations } from '@/i18n/translations-context'
+import { useTranslations, useLocale } from '@/i18n/translations-context'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,15 @@ export default function PromptsPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const t = useTranslations()
+  const locale = useLocale()
+
+  // Sprint 4c (F-04): translated prompt titles/descriptions map
+  const [promptTranslations, setPromptTranslations] = React.useState<
+    Record<string, { title: string; description: string | null }>
+  >({})
+  // Sprint 4c fix: don't render cards until translations are settled
+  // For English locale this is instantly true; for others, wait for the fetch.
+  const [translationsLoaded, setTranslationsLoaded] = React.useState(locale === 'en')
 
   const [departments, setDepartments] = React.useState<string[]>([])
   const [prompts, setPrompts] = React.useState<PromptSummary[]>([])
@@ -77,6 +87,30 @@ export default function PromptsPage() {
     if (activeDept) p.set('dept', activeDept)
     router.replace(`?${p.toString()}`, { scroll: false })
   }, [debouncedSearch, activeDept, router])
+
+  // Sprint 4c (F-04): Fetch translated prompt titles/descriptions when locale changes
+  React.useEffect(() => {
+    if (!locale || locale === 'en') {
+      setPromptTranslations({})
+      setTranslationsLoaded(true)
+      return
+    }
+    // Reset loaded flag while re-fetching
+    setTranslationsLoaded(false)
+    const qs = new URLSearchParams({ tenantSlug })
+    fetch(`${API_BASE}/api/v1/tenant/prompts/locale/${locale}?${qs}`, { credentials: 'omit' })
+      .then((r) => {
+        if (r.ok) return r.json()
+        return null
+      })
+      .then((j) => {
+        if (j?.data) setPromptTranslations(j.data as Record<string, { title: string; description: string | null }>)
+      })
+      .catch(console.error)
+      .finally(() => {
+        setTranslationsLoaded(true)
+      })
+  }, [locale, tenantSlug])
 
   // Fetch departments on mount
   React.useEffect(() => {
@@ -164,6 +198,9 @@ export default function PromptsPage() {
     </ul>
   )
 
+  // Show spinner when either prompts or translations are loading
+  const showGrid = !isLoading && translationsLoaded
+
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* ── Header ── */}
@@ -217,7 +254,7 @@ export default function PromptsPage() {
 
         {/* Grid */}
         <div className="flex-1 space-y-6">
-          {isLoading ? (
+          {!showGrid ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex flex-col gap-3 rounded-xl border border-border p-5">
@@ -238,13 +275,18 @@ export default function PromptsPage() {
           ) : (
             <>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {prompts.map((prompt) => (
+                {prompts.map((prompt) => {
+                  const tx = promptTranslations[prompt.id]
+                  return (
                   <PromptCard
                     key={prompt.id}
                     tenantSlug={tenantSlug}
                     {...prompt}
+                    title={tx?.title ?? prompt.title}
+                    description={tx?.description ?? prompt.description}
                   />
-                ))}
+                  )
+                })}
               </div>
 
               {hasMore && (

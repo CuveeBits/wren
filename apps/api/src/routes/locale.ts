@@ -75,11 +75,29 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
       })
 
       if (existing) {
-        return reply.status(200).send({
-          data: existing.translations,
-          cached: true,
-          locale,
-        })
+        // Check for missing keys — en.json may have grown since last generation (Sprint 4b/4c)
+        const existingKeys = new Set(Object.keys(existing.translations as Record<string, string>))
+        const missingKeys = Object.keys(EN_MESSAGES).filter((k) => !existingKeys.has(k))
+
+        if (missingKeys.length > 0) {
+          // Stale cache: delete and fall through to fresh generation below
+          fastify.log.info({ tenantId, locale, missingCount: missingKeys.length }, '[locale] Stale UI translations — regenerating')
+          await db.tenantLocale.delete({ where: { id: existing.id } })
+          // Fall through to generation
+        } else {
+          // Cache is complete — return it
+          const promptLocaleCount = await db.tenantPromptLocale.count({
+            where: { tenantId, locale }
+          })
+          if (promptLocaleCount === 0) {
+            triggerPromptTranslation(tenantId, locale).catch(() => {})
+          }
+          return reply.status(200).send({
+            data: existing.translations,
+            cached: true,
+            locale,
+          })
+        }
       }
 
       // Generate — single LLM call for entire JSON blob
@@ -100,6 +118,11 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
       const record = await db.tenantLocale.create({
         data: { tenantId, locale, translations },
       })
+
+      // F-03: Sprint 4c — also translate prompts for this locale (fire-and-forget)
+      triggerPromptTranslation(tenantId, locale).catch((err) =>
+        fastify.log.warn({ err, locale, tenantId }, '[F-03] Background prompt translation failed')
+      )
 
       return reply.status(201).send({
         data: record.translations,
@@ -172,4 +195,50 @@ export async function localeRoutes(fastify: FastifyInstance): Promise<void> {
       })
     }
   )
+}
+
+
+// ─── Sprint 4c: F-03 — background prompt translation helper ──────────────────
+
+/**
+ * Translates all prompts for a tenant+locale in the background.
+ * Called after UI translations are generated so that prompt translations
+ * are also ready when the user first browses the Prompt Library.
+ */
+async function triggerPromptTranslation(tenantId: string, locale: string): Promise<void> {
+  const allPrompts = await db.prompt.findMany({
+    where: { isPublic: true },
+    select: { id: true, title: true, description: true, formSchema: true },
+  })
+
+  if (allPrompts.length === 0) return
+
+  const existing = await db.tenantPromptLocale.findMany({
+    where: { tenantId, locale, stale: false },
+    select: { promptId: true },
+  })
+  const alreadyDone = new Set(existing.map((r) => r.promptId))
+
+  const toTranslate = allPrompts.filter((p) => !alreadyDone.has(p.id))
+
+  if (toTranslate.length === 0) return
+
+  const svc = getTranslationService()
+
+  // Sequential — one prompt at a time so slow local models don't time out
+  for (const p of toTranslate) {
+    try {
+      const result = await svc.translatePrompts([p], locale)
+      const t = result[p.id]
+      if (!t) continue
+      await db.tenantPromptLocale.upsert({
+        where: { tenantId_promptId_locale: { tenantId, promptId: p.id, locale } },
+        create: { tenantId, promptId: p.id, locale, title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false },
+        update: { title: t.title, description: t.description || null, formSchemaTranslated: t.formSchemaTranslated ?? undefined, stale: false, generatedAt: new Date() },
+      })
+    } catch (err) {
+      console.warn(`[F-03] Background prompt translation failed for prompt ${p.id} (${locale}):`, err)
+      // Continue with next prompt
+    }
+  }
 }

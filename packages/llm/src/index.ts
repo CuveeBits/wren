@@ -32,3 +32,6 @@ export type { TranslationConfig } from './translation'
 
 // Sprint 4b: TranslationService class + getTranslationService + translateJson
 export { TranslationService, getTranslationService } from './translation'
+
+// Sprint 4c: translatePrompts() standalone helper
+export { translatePrompts } from './translation'

@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@wren/ui'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface SaveToKbToggleProps {
   checked: boolean
@@ -8,11 +9,12 @@ interface SaveToKbToggleProps {
 }
 
 export function SaveToKbToggle({ checked, onCheckedChange }: SaveToKbToggleProps) {
+  const t = useTranslations()
   return (
     <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 px-4 py-3">
       <div>
-        <p className="text-sm font-medium">Save output to KB</p>
-        <p className="text-xs text-muted-foreground">Store the generated result as a knowledge base document after execution.</p>
+        <p className="text-sm font-medium">{t('prompt.saveToKb')}</p>
+        <p className="text-xs text-muted-foreground">{t('prompt.saveToKbDesc')}</p>
       </div>
       <button
         type="button"

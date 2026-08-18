@@ -11,6 +11,7 @@ import * as React from 'react'
 import { Pencil, Check, X, Loader2 } from 'lucide-react'
 import { cn } from '@wren/ui'
 import { updateConversation } from './api'
+import { useTranslations } from '@/i18n/translations-context'
 
 interface ConversationTitleProps {
   conversationId: string
@@ -28,6 +29,7 @@ export function ConversationTitle({
   onUpdated,
   className,
 }: ConversationTitleProps) {
+  const t = useTranslations()
   const [isEditing, setIsEditing] = React.useState(false)
   const [editValue, setEditValue] = React.useState(title ?? '')
   const [isSaving, setIsSaving] = React.useState(false)
@@ -136,8 +138,8 @@ export function ConversationTitle({
         'group flex items-center gap-1.5 rounded px-1 -ml-1 hover:bg-accent transition-colors text-left',
         className
       )}
-      aria-label="Edit conversation title"
-      title="Click to edit title"
+      aria-label={t('chat.editTitle')}
+      title={t('chat.editTitle')}
     >
       <span className="truncate text-sm font-semibold">
         {title ?? <span className="text-muted-foreground italic">{placeholder}</span>}

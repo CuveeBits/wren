@@ -19,6 +19,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify'
 import { z } from 'zod'
 import { authenticate } from '../../plugins/auth'
+import { getLanguageInstruction } from '../../lib/i18n-support'
 import {
   listConversations,
   createConversation,
@@ -48,6 +49,8 @@ const ListConversationsQuerySchema = z.object({
 const CreateConversationBodySchema = z.object({
   channel: z.enum(['app', 'webchat']).default('app'),
   documentIds: z.array(z.string().min(1)).max(20).optional(),
+  // Sprint 4c (F-06): locale for language-aware LLM responses
+  locale: z.string().min(2).max(10).optional(),
   // Optional initial message — if provided, creates conversation and sends first message
   // SSE for initial message is NOT streamed on creation (would require a different endpoint)
   // Client should create then immediately POST to /messages
@@ -137,6 +140,7 @@ export async function chatConversationRoutes(fastify: FastifyInstance): Promise<
         userId: request.auth.clerkUserId,
         channel: bodyResult.data.channel,
         documentIds: bodyResult.data.documentIds,
+        locale: bodyResult.data.locale,
       })
 
       return reply.status(201).send({ data: conversation })

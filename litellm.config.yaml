@@ -42,3 +42,4 @@ model_list:
 
 general_settings:
   master_key: sk-dev-master-key
+  request_timeout: 300

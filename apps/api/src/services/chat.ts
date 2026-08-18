@@ -26,6 +26,7 @@ import { Queue } from 'bullmq'
 import { ChatAgent } from '@wren/agents'
 import type { ConversationContext } from '@wren/agents'
 import { retrieveChunks } from './kb/retrieval'
+import { getLanguageInstruction } from '../lib/i18n-support'
 import { signToken, verifyToken } from '@wren/channels'
 import type { SessionTokenPayload } from '@wren/channels'
 
@@ -98,6 +99,8 @@ export interface CreateConversationInput {
   userId: string
   channel?: string
   documentIds?: string[]
+  /** Sprint 4c (F-06): locale for language-aware LLM responses */
+  locale?: string
 }
 
 export interface ListConversationsInput {
@@ -277,6 +280,13 @@ export async function createConversation(
     select: { systemPrompt: true },
   })
 
+  // F-06: Sprint 4c — prepend language instruction to system prompt snapshot
+  const langInstruction = getLanguageInstruction(input.locale ?? '')
+  const basePrompt = settings?.systemPrompt ?? null
+  const systemPromptSnapshot = langInstruction
+    ? [langInstruction, basePrompt].filter(Boolean).join('\n\n')
+    : basePrompt
+
   const conversation = await db.conversation.create({
     data: {
       id: createId(),
@@ -284,7 +294,7 @@ export async function createConversation(
       userId: input.userId,
       channel: input.channel ?? 'app',
       status: 'active',
-      systemPromptSnapshot: settings?.systemPrompt ?? null,
+      systemPromptSnapshot,
     },
     select: {
       id: true,

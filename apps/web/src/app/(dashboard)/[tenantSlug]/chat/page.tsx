@@ -6,19 +6,23 @@
  * Shown when no conversation is selected.
  * Displays EmptyState with suggested prompts.
  * Creating a new conversation via suggestion navigates to it.
+ *
+ * Sprint 4c (F-06): passes locale when creating conversation for language-aware responses.
  */
 import * as React from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { EmptyState } from '@/components/chat/EmptyState'
 import { createConversation } from '@/components/chat/api'
+import { useLocale } from '@/i18n/translations-context'
 
 export default function ChatIndexPage() {
   const { tenantSlug } = useParams<{ tenantSlug: string }>()
   const router = useRouter()
+  const locale = useLocale()
 
   async function handlePromptClick(prompt: string) {
     try {
-      const conv = await createConversation({ channel: 'app' })
+      const conv = await createConversation({ channel: 'app', locale })
       if (conv) {
         // Navigate to the new conversation with the prompt pre-filled via query param
         router.push(`/${tenantSlug}/chat/${conv.id}?initialMessage=${encodeURIComponent(prompt)}`)

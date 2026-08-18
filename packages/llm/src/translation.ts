@@ -27,7 +27,7 @@ const TRANSLATION_MODEL = 'translation'
 const TRANSLATION_TEMPERATURE = 0.1
 
 // Timeout per translation call (ms)
-const TRANSLATION_TIMEOUT_MS = 30_000
+const TRANSLATION_TIMEOUT_MS = 300_000
 
 // ─── Language detection ───────────────────────────────────────────────────────
 
@@ -231,16 +231,116 @@ export class TranslationService {
   }
 
   /**
-   * translateJson — Sprint 4b (F-04).
-   * Translates an entire flat JSON object of UI strings in a single LLM call.
-   * Returns a translated Record<string, string> with the same keys.
-   * Falls back to the original messages on parse error.
+   * translatePrompts — Sprint 4c (F-02), extended in 4c-form-fields.
+   * Translates an array of prompts (id + title + description + formSchema field labels).
+   * Flattens all strings to keyed map, chunks into <=10 prompts, translates in parallel.
+   * Returns Record<promptId, { title, description, formSchemaTranslated }>.
+   *
+   * formSchema is expected in JSON Schema format: { properties: { [name]: { title, x-placeholder, description } } }
+   */
+  async translatePrompts(
+    prompts: Array<{ id: string; title: string; description?: string | null; formSchema?: unknown }>,
+    toLang: string
+  ): Promise<Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }>> {
+    if (toLang === 'en') {
+      return Object.fromEntries(
+        prompts.map((p) => [p.id, { title: p.title, description: p.description ?? '', formSchemaTranslated: null }])
+      )
+    }
+
+    // Process prompts sequentially, one at a time — avoids parallel LLM calls timing out on slow local models.
+    // Each prompt's strings (title + description + formSchema fields) are translated in a single LLM call.
+    const translated: Record<string, string> = {}
+    for (const p of prompts) {
+      const flat: Record<string, string> = {}
+      flat[`${p.id}::title`] = p.title
+      if (p.description) {
+        flat[`${p.id}::description`] = p.description
+      }
+      // Extract formSchema field strings for translation (JSON Schema format)
+      if (p.formSchema && typeof p.formSchema === 'object') {
+        const schema = p.formSchema as { properties?: Record<string, { title?: string; 'x-placeholder'?: string; description?: string }> }
+        if (schema.properties) {
+          for (const [fieldName, fieldProp] of Object.entries(schema.properties)) {
+            if (fieldProp.title) flat[`${p.id}::form::${fieldName}::title`] = fieldProp.title
+            if (fieldProp['x-placeholder']) flat[`${p.id}::form::${fieldName}::placeholder`] = fieldProp['x-placeholder']
+            if (fieldProp.description) flat[`${p.id}::form::${fieldName}::description`] = fieldProp.description
+          }
+        }
+      }
+      const chunkResult = await this._translateJsonChunk(flat, toLang)
+      Object.assign(translated, chunkResult)
+    }
+
+    // Reconstruct results with translated formSchema
+    const result: Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }> = {}
+    for (const p of prompts) {
+      // Build translated formSchema by deep-cloning and applying translated field strings
+      let formSchemaTranslated: unknown | null = null
+      if (p.formSchema && typeof p.formSchema === 'object') {
+        const schema = p.formSchema as { properties?: Record<string, Record<string, unknown>> }
+        if (schema.properties) {
+          const translatedProperties: Record<string, Record<string, unknown>> = {}
+          for (const [fieldName, fieldProp] of Object.entries(schema.properties)) {
+            const translatedProp = { ...fieldProp }
+            const tTitle = translated[`${p.id}::form::${fieldName}::title`]
+            const tPlaceholder = translated[`${p.id}::form::${fieldName}::placeholder`]
+            const tDesc = translated[`${p.id}::form::${fieldName}::description`]
+            if (tTitle) translatedProp['title'] = tTitle
+            if (tPlaceholder) translatedProp['x-placeholder'] = tPlaceholder
+            if (tDesc) translatedProp['description'] = tDesc
+            translatedProperties[fieldName] = translatedProp
+          }
+          formSchemaTranslated = { ...schema, properties: translatedProperties }
+        }
+      }
+
+      result[p.id] = {
+        title: translated[`${p.id}::title`] ?? p.title,
+        description: translated[`${p.id}::description`] ?? p.description ?? '',
+        formSchemaTranslated,
+      }
+    }
+    return result
+  }
+
+  /**
+   * translateJson — Sprint 4b (F-04), chunked in Sprint 4c fix.
+   * Splits input into chunks of 20 key-value pairs and translates sequentially.
+   * Merges results back into a single Record<string, string>.
+   * Prevents qwen2.5:7b from silently dropping entries on large payloads.
    */
   async translateJson(
     messages: Record<string, string>,
     toLang: string
   ): Promise<Record<string, string>> {
     if (toLang === 'en') return messages
+
+    const CHUNK_SIZE = 20
+    const entries = Object.entries(messages)
+    const chunks: [string, string][][] = []
+    for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+      chunks.push(entries.slice(i, i + CHUNK_SIZE))
+    }
+
+    const chunkPromises = chunks.map(chunk =>
+      this._translateJsonChunk(Object.fromEntries(chunk), toLang)
+    )
+    const chunkResults = await Promise.all(chunkPromises)
+    const results: Record<string, string> = {}
+    for (const result of chunkResults) Object.assign(results, result)
+    return results
+  }
+
+  /**
+   * _translateJsonChunk — internal.
+   * Translates a small flat JSON object (≤20 keys) in a single LLM call.
+   * Falls back to the original messages on parse error.
+   */
+  private async _translateJsonChunk(
+    messages: Record<string, string>,
+    toLang: string
+  ): Promise<Record<string, string>> {
     try {
       const enJson = JSON.stringify(messages, null, 2)
       const response = await this.client.chat({
@@ -278,4 +378,18 @@ export function getTranslationService(): TranslationService {
     _instance = new TranslationService({ baseUrl, apiKey })
   }
   return _instance
+}
+
+// ─── Sprint 4c: translatePrompts() standalone ────────────────────────────────
+
+/**
+ * translatePrompts() — Sprint 4c (F-02) standalone helper.
+ * Delegates to the TranslationService singleton.
+ * Use this for one-off calls without needing to manage a service instance.
+ */
+export async function translatePrompts(
+  prompts: Array<{ id: string; title: string; description?: string | null; formSchema?: unknown }>,
+  toLang: string
+): Promise<Record<string, { title: string; description: string; formSchemaTranslated: unknown | null }>> {
+  return getTranslationService().translatePrompts(prompts, toLang)
 }
