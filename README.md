@@ -106,8 +106,8 @@
 > | Sprint 0 | Repo scaffold + infrastructure + auth + DB schema | ✅ Complete |
 > | Sprint 1 | Prompt library — data model, UI, execution | ✅ Complete |
 > | Sprint 2 | Knowledge base — upload, indexing, RAG query | ✅ Complete |
-> | Sprint 3 | Chat interface + first channel adapter (WebChat) | 🔲 Next |
-> | Sprint 4 | Auto-translate — DE/FR/CZ/PL/EN via local Ollama (GDPR-native) | 🔲 Planned |
+> | Sprint 3 | Chat interface + first channel adapter (WebChat) | ✅ Complete |
+> | Sprint 4 | Auto-translate, UI localisation, and prompt translation — DE/FR/CZ/PL/EN via local Ollama (GDPR-native) | ✅ Complete |
 > | Sprint 5 | Agent builder UI + tool dispatch + n8n scaffolding | 🔲 Planned |
 > | Sprint 6 | n8n workflow integration (full) | 🔲 Planned |
 > | Sprint 7 | Multi-model selection per tenant + Analytics dashboard | 🔲 Planned |
